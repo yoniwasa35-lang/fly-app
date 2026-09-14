@@ -14,4 +14,27 @@ const nextConfig: NextConfig = {
   output: process.env.BUILD_STANDALONE === "1" ? "standalone" : undefined,
 };
 
+/**
+ * כותרות אבטחה. אין כאן CSP מלא, כי הוא דורש תחזוקה מתמשכת ואין באפליקציה
+ * שום סקריפט חיצוני — אבל שלוש הכותרות האלה חוסמות וקטורים אמיתיים בזול.
+ */
+nextConfig.headers = async () => [
+  {
+    source: "/:path*",
+    headers: [
+      // אין שום סיבה שהמערכת תוצג בתוך מסגרת באתר אחר.
+      { key: "X-Frame-Options", value: "DENY" },
+      { key: "X-Content-Type-Options", value: "nosniff" },
+      { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+      { key: "X-DNS-Prefetch-Control", value: "off" },
+    ],
+  },
+  {
+    // עמוד הלקוח: הטוקן נמצא בכתובת עצמה, ולכן הכתובת לא יוצאת בשום
+    // Referer — גם לא כשהלקוח לוחץ על קישור לוואטסאפ.
+    source: "/c/:path*",
+    headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
+  },
+];
+
 export default nextConfig;

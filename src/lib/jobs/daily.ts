@@ -5,6 +5,7 @@
 
 import { prisma } from "../db";
 import { refreshTripStates } from "../milestones/sync";
+import { pruneAttempts } from "../auth/throttle";
 
 export type DailyJobResult = {
   ranAt: Date;
@@ -76,6 +77,7 @@ export async function runDailyJob(now: Date = new Date()): Promise<DailyJobResul
 
   // אחרי קידום הסטטוסים, כדי שתיקים שיצאו היום ייתפסו באותה ריצה.
   result.retired = await retireStaleDeadlines(now);
+  await pruneAttempts(now);
 
   return result;
 }

@@ -226,3 +226,16 @@ model MessageTemplate {
   body      String
   updatedAt DateTime @updatedAt
 }
+
+/// האטה על ניסיונות כניסה כושלים. נשמרת במסד ולא בזיכרון התהליך: בפריסה
+/// ללא שרת כל instance מקבל זיכרון משלו, כך שתוקף שפוגע במספיק instances
+/// מקבל את מלוא הניסיונות בכל אחד מהם. זה המנעול היחיד שמגן על פרטי
+/// הלקוחות, ולכן הוא צריך להיות משותף.
+model LoginAttempt {
+  key          String    @id
+  failures     Int       @default(0)
+  blockedUntil DateTime?
+  updatedAt    DateTime  @updatedAt
+
+  @@index([updatedAt])
+}

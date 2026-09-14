@@ -82,6 +82,26 @@ await check("קישור לקוח לא קיים מחזיר 404", async () => {
   return "תקין";
 });
 
+await check("כותרות אבטחה", async () => {
+  const res = await get("/login");
+  const missing = [];
+  if (res.headers.get("x-frame-options") !== "DENY") missing.push("X-Frame-Options");
+  if (res.headers.get("x-content-type-options") !== "nosniff") missing.push("X-Content-Type-Options");
+  if (!res.headers.get("referrer-policy")) missing.push("Referrer-Policy");
+  if (missing.length) throw new Error("חסרות: " + missing.join(", "));
+  return "מסגור חסום, sniffing חסום, referrer מוגבל";
+});
+
+await check("עמוד הלקוח לא מדליף את הטוקן", async () => {
+  const res = await get("/c/" + "z".repeat(40));
+  if (res.headers.get("referrer-policy") !== "no-referrer") {
+    throw new Error("Referrer-Policy אינו no-referrer — הטוקן עלול לדלוף בקישור יוצא");
+  }
+  const cache = res.headers.get("cache-control") ?? "";
+  if (!cache.includes("no-store")) throw new Error("העמוד ניתן ל-cache: " + cache);
+  return "no-referrer, no-store";
+});
+
 await check("המערכת לא מאונדקסת", async () => {
   const res = await get("/login");
   const html = await res.text();

@@ -8,19 +8,12 @@ import {
   constantTimeEqual,
   createSessionToken,
 } from "@/lib/auth/session";
+import { checkThrottle, clearFailures, recordFailure } from "@/lib/auth/throttle";
 
 export type LoginState = { error?: string };
 
-/**
- * האטה פשוטה על ניסיונות כושלים. נשמרת בזיכרון התהליך, כלומר מתאפסת בפריסה
- * ואינה משותפת בין מופעים — מספיק מול ניחוש ידני של שני משתמשים, לא מול
- * תוקף מתמיד. ההגנה האמיתית היא אורך הסיסמה.
- */
-const attempts = new Map<string, { count: number; blockedUntil: number }>();
-const MAX_ATTEMPTS = 5;
-const BLOCK_MS = 60_000;
-
 function clientKey(forwardedFor: string | null): string {
+  // הכתובת הראשונה ב-x-forwarded-for היא של הלקוח; השאר הם פרוקסים.
   return forwardedFor?.split(",")[0].trim() || "unknown";
 }
 
@@ -31,25 +24,23 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
   }
 
   const key = clientKey((await headers()).get("x-forwarded-for"));
-  const record = attempts.get(key);
-  const now = Date.now();
 
-  if (record && record.blockedUntil > now) {
-    const seconds = Math.ceil((record.blockedUntil - now) / 1000);
-    return { error: `יותר מדי ניסיונות. נסו שוב בעוד ${seconds} שניות.` };
+  const throttled = await checkThrottle(key);
+  if (throttled.blocked) {
+    return { error: `יותר מדי ניסיונות. נסו שוב בעוד ${throttled.secondsLeft} שניות.` };
   }
 
   const passcode = String(formData.get("passcode") ?? "");
   if (!constantTimeEqual(passcode, expected)) {
-    const count = (record?.count ?? 0) + 1;
-    attempts.set(key, {
-      count,
-      blockedUntil: count >= MAX_ATTEMPTS ? now + BLOCK_MS : 0,
-    });
-    return { error: "סיסמה שגויה." };
+    const after = await recordFailure(key);
+    return {
+      error: after.blocked
+        ? `סיסמה שגויה. יותר מדי ניסיונות — נסו שוב בעוד ${after.secondsLeft} שניות.`
+        : "סיסמה שגויה.",
+    };
   }
 
-  attempts.delete(key);
+  await clearFailures(key);
 
   (await cookies()).set(SESSION_COOKIE, await createSessionToken(), {
     httpOnly: true,
