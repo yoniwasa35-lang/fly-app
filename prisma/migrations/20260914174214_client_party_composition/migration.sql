@@ -1,0 +1,6 @@
+-- AlterTable
+ALTER TABLE "Client" ADD COLUMN     "adults" INTEGER NOT NULL DEFAULT 2,
+ADD COLUMN     "childAges" TEXT,
+ADD COLUMN     "children" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "infants" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "partyType" TEXT NOT NULL DEFAULT 'couple';

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db";
 import { saveFlight } from "@/lib/trips/flights";
-import { closeTrip, updateClient } from "@/lib/trips/service";
+import {
+  duplicateTrip, closeTrip, updateClient } from "@/lib/trips/service";
 import { getPublicTrip } from "@/lib/trips/publicView";
 import { addTraveler } from "@/lib/trips/travelers";
 
@@ -129,5 +130,66 @@ describe("סגירת תיק — סעיף 10", () => {
 
     await prisma.traveler.delete({ where: { id: travelerId } });
     await prisma.trip.update({ where: { id: trip.id }, data: { status: trip.status } });
+  });
+});
+
+describe("שכפול נסיעה", () => {
+  it("מעתיק יעד ומחיר, מתחיל גבייה מאפס, ולא מעתיק מספרי דרכון", async () => {
+    const source = await prisma.trip.findFirst({
+      where: { travelers: { some: {} } },
+      include: { travelers: true, client: true },
+    });
+    if (!source) return;
+
+    const dep = "2027-04-11";
+    const ret = "2027-04-18";
+
+    const created = await duplicateTrip({
+      sourceTripId: source.id,
+      departureDate: dep,
+      returnDate: ret,
+      copyTravelers: true,
+    });
+
+    const copy = await prisma.trip.findUniqueOrThrow({
+      where: { id: created.id },
+      include: { travelers: true },
+    });
+
+    try {
+      expect(copy.id).not.toBe(source.id);
+      expect(copy.clientId).toBe(source.clientId);
+      expect(copy.destination).toBe(source.destination);
+      expect(copy.priceToClient).toBe(source.priceToClient);
+
+      // גבייה מתחילה מאפס — נסיעה חדשה לא שולמה.
+      expect(copy.amountPaid).toBe(0);
+
+      expect(copy.departureLocal.slice(0, 10)).toBe(dep);
+      expect(copy.returnLocal.slice(0, 10)).toBe(ret);
+      // שעות היום נשמרות: מי ששכפל טיסת בוקר מצפה לטיסת בוקר.
+      expect(copy.departureLocal.slice(11, 16)).toBe(source.departureLocal.slice(11, 16));
+
+      expect(copy.travelers.length).toBe(source.travelers.length);
+      // השמות עוברים, הדרכונים לא — הם עשויים לפוג בין נסיעה לנסיעה.
+      for (const t of copy.travelers) {
+        expect(t.passportNumberEnc).toBeNull();
+        expect(t.passportExpiry).toBeNull();
+      }
+      expect(copy.travelers.map((t) => t.lastNameLatin).sort()).toEqual(
+        source.travelers.map((t) => t.lastNameLatin).sort(),
+      );
+    } finally {
+      await prisma.trip.delete({ where: { id: copy.id } });
+    }
+  });
+
+  it("חזרה לפני היציאה נדחית", async () => {
+    const source = await prisma.trip.findFirst({ select: { id: true } });
+    if (!source) return;
+
+    await expect(
+      duplicateTrip({ sourceTripId: source.id, departureDate: "2027-05-10", returnDate: "2027-05-03" }),
+    ).rejects.toThrow();
   });
 });

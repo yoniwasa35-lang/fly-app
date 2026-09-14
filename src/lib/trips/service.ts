@@ -56,6 +56,84 @@ export type NewTripInput = {
 };
 
 /** מספר תיק לתצוגה: חודש-שנה של היציאה, ומונה רץ. */
+/**
+ * שכפול נסיעה.
+ *
+ * סוכן שסוגר שוב את אותו מלון באותו יעד לא צריך להקליד הכול מחדש. מה
+ * שנשמר: היעד, השדות, חברות התעופה ומספרי הטיסה, המחירים, מקור ההגעה
+ * וההערות. מה שלא נשמר בכוונה:
+ *
+ *   הנוסעים — הדרכונים של הנסיעה הקודמת עשויים לפוג בינתיים, והעתקה
+ *   שקטה שלהם היא בדיוק הדרך לשלוח מישהו לשדה עם דרכון שפג. מי שרוצה
+ *   אותם מסמן את תיבת ההעתקה, בדיוק כמו בפתיחת תיק ללקוח חוזר.
+ *
+ *   הסכום ששולם — נסיעה חדשה מתחילה בלי גבייה.
+ */
+export async function duplicateTrip(params: {
+  sourceTripId: string;
+  departureDate: string; // YYYY-MM-DD
+  returnDate: string;
+  clientId?: string | null;
+  copyTravelers?: boolean;
+}): Promise<{ id: string; code: string; copiedTravelers: number }> {
+  const src = await prisma.trip.findUnique({
+    where: { id: params.sourceTripId },
+    include: {
+      client: { select: { id: true, name: true, phone: true, email: true } },
+      components: { include: { flight: true } },
+      travelers: true,
+    },
+  });
+  if (!src) throw new Error("הנסיעה המקורית לא נמצאה");
+
+  // שומרים על שעות היום של המקור. סוכן ששכפל טיסת בוקר מצפה לטיסת בוקר.
+  const departureLocal = `${params.departureDate}T${src.departureLocal.slice(11, 16)}`;
+  const returnLocal = `${params.returnDate}T${src.returnLocal.slice(11, 16)}`;
+
+  const outbound = src.components.find((c) => c.flight?.direction === "outbound")?.flight ?? null;
+  const inbound = src.components.find((c) => c.flight?.direction === "inbound")?.flight ?? null;
+
+  const travelers = params.copyTravelers
+    ? src.travelers.map((t) => ({
+        firstNameLatin: t.firstNameLatin,
+        lastNameLatin: t.lastNameLatin,
+        displayNameHe: t.displayNameHe,
+        // מספר הדרכון עצמו לא עובר: הוא מוצפן במפתח של הרשומה, והתוקף
+        // ממילא צריך בדיקה מחדש. מה שעובר זה השם, וזה החלק המייגע.
+        passportNumber: null,
+        passportExpiry: null,
+        passportCountry: t.passportCountry,
+        phone: t.phone,
+        isLead: t.isLead,
+      }))
+    : [];
+
+  const created = await createTrip({
+    client: { name: src.client.name, phone: src.client.phone, email: src.client.email },
+    existingClientId: params.clientId ?? src.client.id,
+    destination: src.destination,
+    templateId: src.templateId,
+    departureLocal,
+    departureAirport: src.departureAirport,
+    returnLocal,
+    returnAirport: src.returnAirport,
+    outboundAirline: outbound?.airlineCode ?? null,
+    outboundFlightNumber: outbound?.flightNumber ?? null,
+    outboundArrivesLocal: null,
+    inboundAirline: inbound?.airlineCode ?? null,
+    inboundFlightNumber: inbound?.flightNumber ?? null,
+    inboundArrivesLocal: null,
+    travelers,
+    priceToClient: src.priceToClient,
+    supplierCost: src.supplierCost,
+    amountPaid: 0,
+    source: src.source,
+    notes: src.notes,
+  });
+
+  return { ...created, copiedTravelers: travelers.length };
+}
+
 export async function nextTripCode(departureAt: Date): Promise<string> {
   const local = utcToZoned(departureAt, DISPLAY_TZ);
   const prefix = `${local.slice(2, 4)}${local.slice(5, 7)}`;
@@ -396,6 +474,38 @@ export type ReturningClient = {
  * ובשבילו כל הפרטים כבר במערכת — כולל דרכונים. הקלדה מחדש שלהם היא גם
  * בזבוז זמן וגם מקור לטעויות.
  */
+/**
+ * לקוח יחיד, באותה צורה שהחיפוש מחזיר. משמש כשמגיעים לטופס הנסיעה
+ * ישירות מכרטיס הלקוח — אין מה לחפש, הלקוח כבר ידוע.
+ */
+export async function getReturningClient(id: string): Promise<ReturningClient | null> {
+  const c = await prisma.client.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      name: true,
+      phone: true,
+      _count: { select: { trips: true } },
+      trips: {
+        orderBy: [{ departureAt: "desc" }, { id: "desc" }],
+        take: 1,
+        select: { destination: true, _count: { select: { travelers: true } } },
+      },
+    },
+  });
+
+  if (!c) return null;
+
+  return {
+    id: c.id,
+    name: c.name,
+    phone: c.phone,
+    tripCount: c._count.trips,
+    lastDestination: c.trips[0]?.destination ?? null,
+    travelerCount: c.trips[0]?._count.travelers ?? 0,
+  };
+}
+
 export async function findClients(query: string): Promise<ReturningClient[]> {
   const q = query.trim();
   if (q.length < 2) return [];

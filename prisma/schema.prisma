@@ -15,11 +15,26 @@ datasource db {
 }
 
 model Client {
-  id        String   @id @default(cuid())
-  name      String
-  phone     String
-  email     String?
-  notes     String?
+  id     String  @id @default(cuid())
+  name   String
+  phone  String
+  email  String?
+  notes  String?
+
+  /*
+   * הרכב הנוסעים הקבוע של הלקוח: יחיד, זוג, משפחה או קבוצה.
+   *
+   * זו ברירת מחדל ברמת הלקוח ולא אמת ברמת הנסיעה — משפחה נוסעת לפעמים
+   * בלי הילדים. הנוסעים בפועל של כל נסיעה יושבים ב-Traveler, וההרכב כאן
+   * משמש כדי למלא את הנסיעה הבאה מראש במקום לשאול כל פעם מחדש.
+   */
+  partyType String @default("couple") // solo | couple | family | group
+  adults    Int    @default(2)
+  children  Int    @default(0)
+  infants   Int    @default(0)
+  /** גילאי הילדים, כמערך JSON. משפיע על מחיר ועל דרישות מושב ברכב. */
+  childAges String?
+
   createdAt DateTime @default(now())
   trips     Trip[]
 }

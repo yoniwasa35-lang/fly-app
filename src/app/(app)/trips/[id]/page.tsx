@@ -26,6 +26,10 @@ import { ComponentsPanel } from "./ComponentsPanel";
 import { TravelersPanel } from "./TravelersPanel";
 import { TripSettingsPanel } from "./TripSettingsPanel";
 import { DepartureEditor } from "./DepartureEditor";
+import { TripCard, TripJump } from "./TripCard";
+import { summarizeTrip } from "@/lib/trips/summary";
+import { describeParty } from "@/lib/clients/party";
+import { toItem } from "@/lib/queue/today";
 import { MoneyPanel } from "./MoneyPanel";
 
 export const dynamic = "force-dynamic";
@@ -60,6 +64,40 @@ export default async function TripPage({
   const unresolvedComponents = trip.components.filter((c) => !isComponentResolved(c.status));
 
   const departure = formatRelativeHe(trip.departureAt, now);
+  const summary = summarizeTrip(trip);
+  const party = describeParty(trip.client);
+
+  /*
+   * הפעולה הבאה: אבן הדרך הפתוחה שמועדה הקרוב ביותר. חסומות יוצאות
+   * מהמשחק — אי אפשר לפעול עליהן, והצגתן כ"הפעולה הבאה" הייתה שולחת את
+   * הסוכן לקיר. נדחות שמועדן טרם הגיע יוצאות מאותה סיבה.
+   */
+  const actionable = openMilestones
+    .filter((m) => m.state !== "blocked")
+    .filter((m) => !m.snoozedUntil || m.snoozedUntil <= now)
+    .sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime());
+
+  const nextMilestone = actionable[0] ?? null;
+  const next = nextMilestone
+    ? toItem({
+        id: nextMilestone.id,
+        key: nextMilestone.key,
+        title: nextMilestone.title,
+        audience: nextMilestone.audience,
+        state: nextMilestone.state,
+        dueAt: nextMilestone.dueAt,
+        blockedByJson: nextMilestone.blockedByJson,
+        bornLate: nextMilestone.bornLate,
+        messageTemplateKey: nextMilestone.messageTemplateKey,
+        trip: {
+          id: trip.id,
+          code: trip.code,
+          destination: trip.destination,
+          departureAt: trip.departureAt,
+          client: { name: trip.client.name, phone: trip.client.phone },
+        },
+      })
+    : null;
 
   return (
     <>
@@ -71,7 +109,7 @@ export default async function TripPage({
             טיסה {departure.text}
           </span>
         </h1>
-        <Link className="btn" href="/">היום</Link>
+        <Link className="btn" href={`/trips/${trip.id}/duplicate`}>שכפול</Link>
       </header>
 
       {created && (
@@ -80,6 +118,17 @@ export default async function TripPage({
           {copied && <> {copied} נוסעים הועתקו מהתיק הקודם — כדאי לוודא שהדרכונים עדיין בתוקף.</>}
         </div>
       )}
+
+      <TripCard
+        summary={summary}
+        next={next}
+        now={now}
+        destination={trip.destination}
+        departureAt={trip.departureAt}
+        returnAt={trip.returnAt}
+        party={party}
+        openCount={openMilestones.length}
+      />
 
       {/*
         סעיף 8.3 — בעיה פתוחה מוצגת כהתראה מפורשת בטקסט, לא כאייקון.
@@ -111,9 +160,23 @@ export default async function TripPage({
         </div>
       )}
 
+      <TripJump
+        links={[
+          { id: "milestones", label: "משימות" },
+          { id: "components", label: "פרטי נסיעה" },
+          { id: "travelers", label: "נוסעים" },
+          { id: "money", label: "תשלומים" },
+          { id: "link", label: "קישור ללקוח" },
+        ]}
+      />
+
       {/* ------------------------------ ציר אבני הדרך ------------------------------ */}
-      <div className="card">
-        <h2>אבני דרך</h2>
+      <details className="collapse section" id="milestones">
+        <summary>
+          משימות התיק
+          <span className="hint">{openMilestones.length} פתוחות מתוך {trip.milestones.length}</span>
+        </summary>
+        <div className="card">
         <ul className="timeline">
           {trip.milestones.map((m) => {
             const state = m.state as MilestoneState;
@@ -143,10 +206,15 @@ export default async function TripPage({
             );
           })}
         </ul>
-      </div>
+        </div>
+      </details>
 
       {/* -------------------------------- רכיבים --------------------------------- */}
-      <div id="components">
+      <details className="collapse section" id="components">
+        <summary>
+          פרטי נסיעה
+          <span className="hint">טיסות, מלון, העברות — {trip.components.length} רכיבים</span>
+        </summary>
         <ComponentsPanel
           tripId={trip.id}
           airports={allAirports().map((a) => ({ iata: a.iata, label: `${a.he} (${a.iata})` }))}
@@ -199,8 +267,13 @@ export default async function TripPage({
               : null,
           }))}
         />
-      </div>
+      </details>
 
+      <details className="collapse section" id="travelers">
+        <summary>
+          נוסעים
+          <span className="hint">{trip.travelers.length} רשומים · דרכונים ותוקף</span>
+        </summary>
       <TravelersPanel
         tripId={trip.id}
         requiredUntil={utcToZoned(passportValidUntilRequirement(snapshot), DISPLAY_TZ).slice(0, 10)}
@@ -220,7 +293,13 @@ export default async function TripPage({
             : null,
         }))}
       />
+      </details>
 
+      <details className="collapse section" id="money">
+        <summary>
+          תשלומים
+          <span className="hint">מחיר, גבייה ורווח</span>
+        </summary>
       <MoneyPanel
         tripId={trip.id}
         priceToClient={trip.priceToClient}
@@ -233,7 +312,13 @@ export default async function TripPage({
           trip.milestones.find((m) => m.key === "close_actual_commission" && isOpenState(m.state))?.id ?? null
         }
       />
+      </details>
 
+      <details className="collapse section" id="link">
+        <summary>
+          קישור ללקוח
+          <span className="hint">העמוד שנשלח בוואטסאפ</span>
+        </summary>
       {(() => {
         const url = publicTripUrl(trip.publicToken);
         const message = `היי, הנה עמוד הנסיעה שלכם ל${trip.destination}: ${url}`;
@@ -248,7 +333,13 @@ export default async function TripPage({
           />
         );
       })()}
+      </details>
 
+      <details className="collapse section" id="settings">
+        <summary>
+          הגדרות התיק
+          <span className="hint">פרטי לקוח, מקור הגעה, סטטוס ותאריכים</span>
+        </summary>
       <TripSettingsPanel
         tripId={trip.id}
         clientName={trip.client.name}
@@ -271,6 +362,7 @@ export default async function TripPage({
         returnTime={trip.returnLocal.slice(11, 16)}
         returnAirport={airportLabel(trip.returnAirport)}
       />
+      </details>
     </>
   );
 }

@@ -16,18 +16,20 @@ import type { ReturningClient } from "@/lib/trips/service";
  * היא גם בזבוז וגם מקור לטעויות.
  */
 export function NewTripForm({
-  templates, airports, airlines,
+  templates, airports, airlines, preselected = null,
 }: {
   templates: Array<{ id: string; title: string }>;
   airports: Array<{ iata: string; label: string }>;
   airlines: Array<{ code: string; label: string }>;
+  /** לקוח שהגיעו איתו מכרטיס הלקוח. הטופס נפתח עליו, בלי חיפוש. */
+  preselected?: ReturningClient | null;
 }) {
   const [state, formAction, pending] = useActionState<NewTripState, FormData>(createTripAction, {});
   const today = new Date().toISOString().slice(0, 10);
 
   const [search, setSearch] = useState("");
   const [matches, setMatches] = useState<ReturningClient[]>([]);
-  const [picked, setPicked] = useState<ReturningClient | null>(null);
+  const [picked, setPicked] = useState<ReturningClient | null>(preselected);
   const [, startTransition] = useTransition();
 
   const [showFlights, setShowFlights] = useState(false);

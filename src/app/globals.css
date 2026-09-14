@@ -2387,3 +2387,191 @@ details.collapse.template-item > summary::before { grid-row: 1 / span 2; }
   border-color: var(--brand);
   color: var(--brand-deep);
 }
+
+/* ========================== הכרטיס הראשי של תיק ======================
+ * "הפעולה הבאה" יושבת מעל הכל ובצבע של המצב שלה. זה הדבר היחיד במסך
+ * שהסוכן חייב לראות לפני שהוא קורא משהו.
+ */
+
+.next-action {
+  margin: var(--sp-4);
+  padding: var(--sp-5);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  border-inline-start: 4px solid var(--future-line);
+}
+
+.next-action.is-overdue { border-inline-start-color: var(--overdue); background: color-mix(in srgb, var(--overdue-bg) 40%, var(--surface)); }
+.next-action.is-due { border-inline-start-color: var(--due); background: color-mix(in srgb, var(--due-bg) 45%, var(--surface)); }
+.next-action.is-pending { border-inline-start-color: var(--brand); }
+.next-action.is-clear { border-inline-start-color: var(--done); }
+
+.next-label {
+  display: block;
+  font-size: var(--fs-2xs);
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  margin-bottom: var(--sp-2);
+}
+
+.next-title {
+  margin: 0;
+  font-size: var(--fs-lg);
+  font-weight: 650;
+  line-height: 1.35;
+  text-wrap: pretty;
+}
+
+.next-when { margin: var(--sp-1) 0 var(--sp-4); font-size: var(--fs-sm); color: var(--text-soft); }
+.next-action .actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.next-action .actions button { min-height: var(--tap); }
+
+/* ------------------------------ שש השורות ---------------------------- */
+
+.trip-summary {
+  margin: var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-xs);
+  overflow: hidden;
+}
+
+.tc-head { padding: var(--sp-5) var(--sp-5) var(--sp-4); border-bottom: 1px solid var(--border); }
+.tc-head h2 { font-size: var(--fs-xl); letter-spacing: -0.02em; }
+.tc-head p { margin: var(--sp-1) 0 0; font-size: var(--fs-sm); color: var(--text-soft); }
+.tc-party { font-size: var(--fs-2xs) !important; color: var(--text-faint) !important; }
+
+.tc-line {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-5);
+  border-bottom: 1px solid var(--border);
+  min-height: 56px;
+}
+
+.tc-line:last-child { border-bottom: none; }
+.tc-line > svg { width: 19px; height: 19px; color: var(--text-faint); flex: none; }
+.tc-line > div { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.tc-line strong { font-size: var(--fs-sm); font-weight: 600; }
+.tc-line small { font-size: var(--fs-2xs); color: var(--text-soft); }
+.tc-line-empty { opacity: 0.6; }
+.tc-line-empty small { font-style: italic; }
+
+/* ריפוד בקצה כדי שהשבב האחרון לא ייעצר מתחת לכפתור ה-+ */
+.trip-jump { padding: var(--sp-2) var(--sp-4) 0; padding-inline-end: 4.75rem; }
+
+.trip-jump a {
+  white-space: nowrap;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: var(--r-full);
+  text-decoration: none;
+  min-height: 36px;
+  padding: var(--sp-2) var(--sp-4);
+  font-size: var(--fs-xs);
+}
+
+/*
+ * `details.collapse > summary` צובע באדום — נכון לאזהרת "נולדו באיחור"
+ * שבשבילה הוא נכתב, ולא לאזורי התיק. הסלקטור חייב להיות מפורט לפחות
+ * כמוהו, אחרת כל אזור נראה כאילו משהו דחוף בו.
+ */
+details.collapse.section > summary { color: var(--text); }
+
+/* אזור מתקפל שעוטף פאנל קיים — בלי מסגרת כפולה */
+.collapse.section > .card,
+.collapse.section > form.card,
+.collapse.section > div > .card {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* ========================= בחירה במקום הקלדה ========================= */
+
+.choice-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
+}
+
+.choice-row button {
+  flex: 1;
+  min-width: 5.5rem;
+  min-height: var(--tap);
+  border-radius: var(--r-full);
+}
+
+.input-row { display: flex; gap: var(--sp-2); align-items: stretch; }
+.input-row input { flex: 1; min-width: 0; }
+.input-row button { flex: none; white-space: nowrap; }
+
+.steppers { display: grid; gap: var(--sp-2); }
+
+.stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--surface-2);
+  border-radius: var(--r-md);
+  min-height: 52px;
+}
+
+.stepper-label { font-size: var(--fs-sm); font-weight: 550; color: var(--text-soft); }
+
+.stepper-controls { display: flex; align-items: center; gap: var(--sp-2); }
+
+.stepper-controls button {
+  width: var(--tap);
+  min-width: var(--tap);
+  height: var(--tap);
+  min-height: var(--tap);
+  padding: 0;
+  border-radius: 50%;
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  background: var(--surface);
+}
+
+.stepper-controls output {
+  min-width: 2.25rem;
+  text-align: center;
+  font-size: var(--fs-lg);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.ages { margin-top: var(--sp-4); }
+.ages-row { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-2); }
+.ages-row input { width: 4.25rem; text-align: center; direction: ltr; }
+
+/*
+ * סרגל השמירה נדבק לתחתית המסך, מעל סרגל הניווט. בטופס ארוך הכפתור
+ * הראשי נמצא אחרת מתחת לקיפול, והמשתמש גולל כדי למצוא אותו — בדיוק
+ * ההפך ממה שנדרש כאן, שפתיחת לקוח תיקח פחות מדקה.
+ */
+.submit-bar {
+  position: sticky;
+  bottom: calc(5rem + env(safe-area-inset-bottom));
+  z-index: 15;
+  display: grid;
+  gap: var(--sp-2);
+  margin-top: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4) var(--sp-4);
+  background: linear-gradient(to bottom, transparent, var(--bg) 22%);
+}
+
+@media (min-width: 720px) {
+  .submit-bar { position: static; background: none; }
+}
+
+.submit-bar .btn-lg { width: 100%; }
