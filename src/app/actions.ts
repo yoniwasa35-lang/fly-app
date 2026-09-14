@@ -8,6 +8,7 @@ import {
   reopenMilestone,
 } from "@/lib/milestones/actions";
 import { markCheckinDone, recordPayment, setComponentStatus } from "@/lib/trips/service";
+import { prepareMessage } from "@/lib/messages/prepare";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -55,4 +56,17 @@ export async function markCheckinDoneAction(componentId: string, done: boolean):
 
 export async function recordPaymentAction(tripId: string, amountPaid: number): Promise<ActionResult> {
   return guard(() => recordPayment(tripId, amountPaid));
+}
+
+export type PrepareMessageResult =
+  | { ok: true; message: Awaited<ReturnType<typeof prepareMessage>> }
+  | { ok: false; error: string };
+
+/** מכין את נוסח ההודעה לאבן דרך שפונה ללקוח — סעיף 9. */
+export async function prepareMessageAction(milestoneId: string): Promise<PrepareMessageResult> {
+  try {
+    return { ok: true, message: await prepareMessage(milestoneId) };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "הכנת ההודעה נכשלה" };
+  }
 }

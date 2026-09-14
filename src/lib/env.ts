@@ -40,6 +40,16 @@ export function checkEnv(): { errors: string[]; warnings: string[] } {
     errors.push("APP_PASSCODE קצר מ-12 תווים. זו הסיסמה היחידה שמגנה על פרטי הלקוחות.");
   }
 
+  for (const [key, what] of [
+    ["AGENT_NAME", "החתימה בתחתית ההודעות"],
+    ["AGENCY_NAME", "שם העסק בהודעות"],
+    ["AGENT_EMERGENCY_PHONE", "מספר החירום שנשלח ללקוח לפני היציאה"],
+  ] as const) {
+    if (!process.env[key]?.trim()) {
+      warnings.push(`${key} לא מוגדר — ${what}. הודעות שמשתמשות בו ייחסמו לפני שליחה.`);
+    }
+  }
+
   if (!process.env.DIRECT_DATABASE_URL?.trim()) {
     warnings.push("DIRECT_DATABASE_URL לא מוגדר. אם הספק שלכם משתמש ב-pooler, מיגרציות ייכשלו.");
   }

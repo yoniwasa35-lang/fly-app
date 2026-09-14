@@ -202,3 +202,11 @@ model Milestone {
   @@index([dueAt])
   @@index([tripId, dueAt])
 }
+
+/// דריסה של תבנית הודעה. ברירת המחדל חיה כקובץ ב-config/messages,
+/// וכאן נשמר רק מה שהסוכן ערך בעצמו — סעיף 9 דורש את שניהם.
+model MessageTemplate {
+  key       String   @id
+  body      String
+  updatedAt DateTime @updatedAt
+}

@@ -22,6 +22,8 @@ export type QueueItem = {
   blockers: Blocker[];
   bornLate: boolean;
   requiresResolution: boolean;
+  /** קיים רק לאבני דרך שפונות ללקוח — הכפתור שלהן פותח הודעת וואטסאפ. */
+  messageTemplateKey: string | null;
   trip: {
     id: string;
     code: string;
@@ -81,6 +83,7 @@ export async function getTodayQueue(now: Date = new Date()): Promise<TodayQueue>
       blockers: parseBlockers(r.blockedByJson),
       bornLate: r.bornLate,
       requiresResolution: RESOLUTION_KEYS.has(r.key),
+      messageTemplateKey: r.messageTemplateKey,
       trip: {
         id: r.trip.id,
         code: r.trip.code,
