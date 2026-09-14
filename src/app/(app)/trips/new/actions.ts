@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createTrip } from "@/lib/trips/service";
 import { isKnownAirport } from "@/lib/time/airports";
+import { DISPLAY_TZ, zonedToUtc } from "@/lib/time/zones";
 
 const schema = z.object({
   clientName: z.string().trim().min(2, "צריך שם לקוח"),
@@ -20,6 +21,7 @@ const schema = z.object({
   outboundFlightNumber: z.string().trim().optional(),
   inboundAirline: z.string().trim().optional(),
   inboundFlightNumber: z.string().trim().optional(),
+  bookedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")),
   priceToClient: z.coerce.number().min(0).default(0),
   amountPaid: z.coerce.number().min(0).default(0),
   supplierCost: z.coerce.number().min(0).default(0),
@@ -62,6 +64,7 @@ export async function createTripAction(
       outboundFlightNumber: v.outboundFlightNumber || null,
       inboundAirline: v.inboundAirline || null,
       inboundFlightNumber: v.inboundFlightNumber || null,
+      bookedAt: v.bookedDate ? zonedToUtc(`${v.bookedDate}T12:00`, DISPLAY_TZ) : undefined,
       travelers: [],
       priceToClient: v.priceToClient,
       amountPaid: v.amountPaid,

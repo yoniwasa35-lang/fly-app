@@ -7,7 +7,7 @@ import {
   snoozeMilestone,
   reopenMilestone,
 } from "@/lib/milestones/actions";
-import { markCheckinDone, recordPayment, setComponentStatus } from "@/lib/trips/service";
+import { markCheckinDone, recordPayment, setComponentStatus, updateFinance } from "@/lib/trips/service";
 import { prepareMessage } from "@/lib/messages/prepare";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -69,4 +69,17 @@ export async function prepareMessageAction(milestoneId: string): Promise<Prepare
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "הכנת ההודעה נכשלה" };
   }
+}
+
+/** מעקב סכומים בלבד — סעיף 3 מוציא הנהלת חשבונות מהגדרת v1. */
+export async function updateFinanceAction(
+  tripId: string,
+  values: {
+    priceToClient: number;
+    supplierCost: number;
+    expectedCommission: number;
+    actualCommission: number;
+  },
+): Promise<ActionResult> {
+  return guard(() => updateFinance(tripId, values));
 }

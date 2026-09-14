@@ -18,6 +18,7 @@ export function NewTripForm({
   airlines: Array<{ code: string; label: string }>;
 }) {
   const [state, formAction, pending] = useActionState<NewTripState, FormData>(createTripAction, {});
+  const today = new Date().toISOString().slice(0, 10);
 
   return (
     <form action={formAction}>
@@ -39,6 +40,14 @@ export function NewTripForm({
         <div className="field">
           <label htmlFor="destination">יעד</label>
           <input id="destination" name="destination" required placeholder="אתונה" autoComplete="off" />
+        </div>
+        <div className="field">
+          <label htmlFor="bookedDate">תאריך התשלום</label>
+          <input id="bookedDate" name="bookedDate" type="date" defaultValue={today} max={today} />
+          <p className="hint">
+            התיק נולד ברגע התשלום, לא ברגע ההקלדה. כשמזינים תיק ישן — שנו את התאריך,
+            אחרת אבני הדרך הראשונות יקבלו מועד בעתיד.
+          </p>
         </div>
         <div className="field">
           <label htmlFor="templateId">סוג הנסיעה</label>

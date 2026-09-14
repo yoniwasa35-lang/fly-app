@@ -309,3 +309,22 @@ describe("הצמדה לשעת עבודה לא יוצרת איחור מלאכות
     expect(welcome.getTime()).toBe(makeTrip().returnAt.getTime());
   });
 });
+
+describe("התיק נולד ברגע התשלום — סעיף 5", () => {
+  it("תיק שהוזן באיחור מקבל אבני דרך ביחס לתשלום, לא להקלדה", () => {
+    // אותה נסיעה, אותו תאריך טיסה, שני מועדי תשלום שונים.
+    const departure = zonedToUtc("2026-08-10T06:20", "Asia/Jerusalem");
+    const paidLongAgo = makeTrip({ departureAt: departure, bookedAt: zonedToUtc("2026-03-01T10:00", "Asia/Jerusalem") });
+    const typedToday = makeTrip({ departureAt: departure, bookedAt: zonedToUtc("2026-07-01T10:00", "Asia/Jerusalem") });
+
+    const a = byKey(buildDesiredMilestones(paidLongAgo).milestones);
+    const b = byKey(buildDesiredMilestones(typedToday).milestones);
+
+    // אבן דרך שעוגנה בהזמנה זזה עם מועד התשלום.
+    expect(utcToZoned(a.get("check_visa_requirements")!.dueAt, "Asia/Jerusalem")).toBe("2026-03-03T09:00");
+    expect(utcToZoned(b.get("check_visa_requirements")!.dueAt, "Asia/Jerusalem")).toBe("2026-07-03T09:00");
+
+    // ואבן דרך שעוגנה ביציאה לא זזה בכלל.
+    expect(a.get("send_documents")!.dueAt.getTime()).toBe(b.get("send_documents")!.dueAt.getTime());
+  });
+});

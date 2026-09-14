@@ -1,69 +1,109 @@
 import Link from "next/link";
-import { prisma } from "@/lib/db";
-import { isOpenState, TRIP_STATUS_HE, type TripStatus } from "@/lib/domain/types";
-import { formatAbsoluteHe, formatRelativeHe } from "@/lib/time/zones";
+import { getTimeline, PAST_WINDOW_DAYS, WINDOW_OPTIONS } from "@/lib/queue/timeline";
+import { formatAbsoluteHe } from "@/lib/time/zones";
+import { TimelineBoard } from "./TimelineBoard";
+import { TripFilters } from "./TripFilters";
 
 export const dynamic = "force-dynamic";
 
-/**
- * רשימת התיקים. תצוגת ציר הזמן האופקית המלאה (סעיף 8.2) היא שלב 3;
- * כאן יש רשימה ממוינת לפי יום הטיסה, שמספיקה כדי לנווט לתיק.
- */
-export default async function TripsPage() {
-  const trips = await prisma.trip.findMany({
-    where: { status: { in: ["active", "traveling"] } },
-    orderBy: { departureAt: "asc" },
-    include: {
-      client: { select: { name: true } },
-      milestones: { where: { state: { in: ["due", "overdue", "blocked", "pending"] } }, select: { state: true } },
-    },
-    take: 200,
+type Search = {
+  q?: string;
+  window?: string;
+  hot?: string;
+  status?: string;
+  page?: string;
+};
+
+const PAGE_SIZE = 40;
+
+export default async function TripsPage({ searchParams }: { searchParams: Promise<Search> }) {
+  const sp = await searchParams;
+
+  const windowDays = WINDOW_OPTIONS.includes(Number(sp.window) as (typeof WINDOW_OPTIONS)[number])
+    ? Number(sp.window)
+    : 90;
+  const page = Math.max(0, Number(sp.page) || 0);
+  const status = sp.status === "traveling" || sp.status === "all" ? sp.status : "open";
+
+  const timeline = await getTimeline({
+    query: sp.q,
+    windowDays,
+    onlyHot: sp.hot === "1",
+    status,
+    limit: PAGE_SIZE,
+    offset: page * PAGE_SIZE,
   });
 
-  const now = new Date();
+  const buildHref = (patch: Partial<Search>) => {
+    const params = new URLSearchParams();
+    const merged = { ...sp, ...patch };
+    for (const [k, v] of Object.entries(merged)) {
+      if (v && v !== "0" && !(k === "page" && v === "0")) params.set(k, String(v));
+    }
+    const qs = params.toString();
+    return qs ? `/trips?${qs}` : "/trips";
+  };
 
   return (
     <>
       <header className="topbar">
         <h1>
           כל התיקים
-          <span className="sub">{trips.length} תיקים פתוחים, לפי יום הטיסה</span>
+          <span className="sub">
+            {timeline.total} תיקים בחלון של {windowDays} יום
+            {timeline.counts.hot > 0 && <> · {timeline.counts.hot} דורשים טיפול</>}
+          </span>
         </h1>
         <Link className="btn" href="/trips/new">תיק חדש</Link>
       </header>
 
-      {trips.length === 0 ? (
+      <TripFilters
+        q={sp.q ?? ""}
+        windowDays={windowDays}
+        hot={sp.hot === "1"}
+        status={status}
+      />
+
+      {timeline.rows.length === 0 ? (
         <div className="empty">
-          <strong>אין עדיין תיקים.</strong>
-          <Link className="btn" href="/trips/new" style={{ marginTop: "0.8rem" }}>פתיחת תיק ראשון</Link>
+          <strong>אין תיקים שתואמים לסינון.</strong>
+          {timeline.total === 0 && sp.q
+            ? "אף תיק לא תואם את החיפוש."
+            : "נסו להרחיב את חלון הזמן או לנקות את הסינון."}
+          <div style={{ marginTop: "0.8rem" }}>
+            <Link className="btn" href="/trips">ניקוי סינון</Link>
+          </div>
         </div>
       ) : (
-        <div className="stack" style={{ marginTop: "1rem" }}>
-          {trips.map((t) => {
-            const open = t.milestones.filter((m) => isOpenState(m.state));
-            const overdue = open.filter((m) => m.state === "overdue").length;
-            const blocked = open.filter((m) => m.state === "blocked").length;
-            const rel = formatRelativeHe(t.departureAt, now);
-            return (
-              <Link key={t.id} href={`/trips/${t.id}`} style={{ textDecoration: "none" }}>
-                <div className={`row ${overdue > 0 ? "is-overdue" : blocked > 0 ? "is-blocked" : "is-pending"}`}>
-                  <div className="when">
-                    {rel.text}
-                    <small>{formatAbsoluteHe(t.departureAt, { withTime: false })}</small>
-                  </div>
-                  <div className="title">{t.client.name} · {t.destination}</div>
-                  <div className="meta">
-                    <span className="num">{t.code}</span>
-                    <span className="tag">{TRIP_STATUS_HE[t.status as TripStatus]}</span>
-                    {overdue > 0 && <span className="tag tag-overdue">{overdue} עברו מועד</span>}
-                    {blocked > 0 && <span className="tag tag-blocked">{blocked} חסומות</span>}
-                    {overdue === 0 && blocked === 0 && <span className="tag tag-done">נקי</span>}
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
+        <>
+          <TimelineBoard timeline={timeline} pastDays={PAST_WINDOW_DAYS} />
+
+          <div className="tl-legend">
+            <span><i className="tl-dot s-overdue" /> עבר מועד</span>
+            <span><i className="tl-dot s-due" /> לפעולה</span>
+            <span><i className="tl-dot s-blocked" /> חסום</span>
+            <span><i className="tl-dot s-pending" /> עתידי</span>
+            <span><i className="departure-key" /> יום הטיסה</span>
+          </div>
+
+          <p className="hint" style={{ padding: "0 1rem" }}>
+            הציר מתחיל {formatAbsoluteHe(timeline.windowStart, { withTime: false })} ומשתרע על{" "}
+            {timeline.windowDays} יום. נקודה אחת יכולה לייצג כמה אבני דרך באותו יום.
+          </p>
+
+          {(page > 0 || timeline.more > 0) && (
+            <div className="actions" style={{ padding: "0 1rem 1rem", justifyContent: "space-between" }}>
+              {page > 0 ? (
+                <Link className="btn" href={buildHref({ page: String(page - 1) })}>הקודמים</Link>
+              ) : <span />}
+              {timeline.more > 0 && (
+                <Link className="btn" href={buildHref({ page: String(page + 1) })}>
+                  עוד {Math.min(PAGE_SIZE, timeline.more)} תיקים
+                </Link>
+              )}
+            </div>
+          )}
+        </>
       )}
     </>
   );

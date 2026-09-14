@@ -51,7 +51,6 @@ export default async function TripPage({
   const overdue = openMilestones.filter((m) => m.state === "overdue");
   const blocked = openMilestones.filter((m) => m.state === "blocked");
   const unresolvedComponents = trip.components.filter((c) => !isComponentResolved(c.status));
-  const balance = trip.priceToClient - trip.amountPaid;
 
   const departure = formatRelativeHe(trip.departureAt, now);
 
@@ -196,8 +195,10 @@ export default async function TripPage({
       <MoneyPanel
         tripId={trip.id}
         priceToClient={trip.priceToClient}
+        supplierCost={trip.supplierCost}
         amountPaid={trip.amountPaid}
-        balance={balance}
+        expectedCommission={trip.expectedCommission}
+        actualCommission={trip.actualCommission}
       />
 
       {/* ------------------------------ שינוי העוגן ------------------------------ */}

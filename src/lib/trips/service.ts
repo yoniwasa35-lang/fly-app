@@ -24,6 +24,11 @@ export type NewTripInput = {
   outboundFlightNumber?: string | null;
   inboundAirline?: string | null;
   inboundFlightNumber?: string | null;
+  /**
+   * מתי שולם. התיק נולד ברגע התשלום (סעיף 5), ולא ברגע ההקלדה — ההבדל
+   * קריטי כשמזינים תיקים קיימים, שכולם שולמו לפני שבועות.
+   */
+  bookedAt?: Date;
   travelers: Array<{
     firstNameLatin: string;
     lastNameLatin: string;
@@ -65,6 +70,14 @@ export async function createTrip(input: NewTripInput): Promise<{ id: string; cod
     throw new Error("מועד החזרה חייב להיות אחרי מועד היציאה");
   }
 
+  const bookedAt = input.bookedAt ?? new Date();
+  if (bookedAt.getTime() > Date.now() + 60_000) {
+    throw new Error("תאריך התשלום לא יכול להיות בעתיד");
+  }
+  if (bookedAt.getTime() > departureAt.getTime()) {
+    throw new Error("תאריך התשלום לא יכול להיות אחרי היציאה");
+  }
+
   const code = await nextTripCode(departureAt);
 
   const trip = await prisma.$transaction(async (tx) => {
@@ -86,6 +99,7 @@ export async function createTrip(input: NewTripInput): Promise<{ id: string; cod
         returnLocal: input.returnLocal,
         returnTz: retTz,
         returnAirport: input.returnAirport.toUpperCase(),
+        bookedAt,
         status: "active",
         priceToClient: input.priceToClient ?? 0,
         supplierCost: input.supplierCost ?? 0,
@@ -285,4 +299,24 @@ export async function closeTrip(tripId: string): Promise<void> {
     }),
     prisma.trip.update({ where: { id: tripId }, data: { status: "closed" } }),
   ]);
+}
+
+/**
+ * עדכון הסכומים בתיק. שינוי המחיר ללקוח משפיע על אבן הדרך של גביית
+ * היתרה, ולכן המצבים מחושבים מחדש.
+ */
+export async function updateFinance(
+  tripId: string,
+  values: {
+    priceToClient: number;
+    supplierCost: number;
+    expectedCommission: number;
+    actualCommission: number;
+  },
+): Promise<void> {
+  for (const [key, value] of Object.entries(values)) {
+    if (!Number.isFinite(value) || value < 0) throw new Error(`ערך לא תקין בשדה ${key}`);
+  }
+  await prisma.trip.update({ where: { id: tripId }, data: values });
+  await refreshTripStates(tripId);
 }
