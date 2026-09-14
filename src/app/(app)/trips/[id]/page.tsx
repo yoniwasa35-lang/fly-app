@@ -37,6 +37,7 @@ import { directionFromLabel } from "@/lib/trips/flightLabels";
 import { HotelPanel } from "./HotelPanel";
 import { CoverEditor } from "./CoverEditor";
 import { NextAction } from "./TripCard";
+import { TripTasksPanel, type TaskRow } from "./TripTasksPanel";
 import { TripSheets, type Tile } from "./TripSheets";
 
 export const dynamic = "force-dynamic";
@@ -290,39 +291,33 @@ export default async function TripPage({
     />
   );
 
-  const tasksSheet = (
-    <>
-      <ul className="timeline">
-        {trip.milestones.map((m) => {
-          const state = m.state as MilestoneState;
-          const rel = formatRelativeHe(m.dueAt, now);
-          const blockers = parseBlockers(m.blockedByJson);
-          const terminal = state === "done" || state === "skipped";
-          return (
-            <li key={m.id}>
-              <span className={`dot s-${state}`} aria-hidden />
-              <span className={`t ${terminal ? "muted" : ""}`}>{m.title}</span>
-              <span className="d">
-                <span className="num">{formatAbsoluteHe(m.dueAt, { withTime: true })}</span>
-                {!terminal && <> · {rel.text}</>}
-                {" · "}
-                <span className="tag">{MILESTONE_STATE_HE[state]}</span>{" "}
-                <span className="tag">{AUDIENCE_HE[m.audience as keyof typeof AUDIENCE_HE]}</span>
-                {m.snoozedUntil && m.snoozedUntil > now && (
-                  <> · נדחה עד <span className="num">{formatAbsoluteHe(m.snoozedUntil, { withTime: false })}</span>: {m.snoozeReason}</>
-                )}
-                {m.skipReason && <> · ויתור: {m.skipReason}</>}
-                {blockers.length > 0 && <> · חסום: {blockers.map((b) => b.label).join("; ")}</>}
-              </span>
-            </li>
-          );
-        })}
-      </ul>
-      <p className="hint" style={{ marginTop: "var(--sp-4)" }}>
-        אפשר לסמן ולטפל בכל אחת ממסך "היום" או ממסך "משימות".
-      </p>
-    </>
-  );
+  const taskRows: TaskRow[] = trip.milestones.map((m) => ({
+    ...toItem({
+      id: m.id,
+      key: m.key,
+      title: m.title,
+      audience: m.audience,
+      state: m.state,
+      dueAt: m.dueAt,
+      blockedByJson: m.blockedByJson,
+      bornLate: m.bornLate,
+      messageTemplateKey: m.messageTemplateKey,
+      trip: {
+        id: trip.id, code: trip.code, destination: trip.destination,
+        departureAt: trip.departureAt,
+        client: { name: trip.client.name, phone: trip.client.phone },
+      },
+    }),
+    dateLabel: formatAbsoluteHe(m.dueAt, { withTime: true }),
+    relative: formatRelativeHe(m.dueAt, now).text,
+    note:
+      m.skipReason ? `בוטל: ${m.skipReason}`
+      : m.snoozedUntil && m.snoozedUntil > now
+        ? `נדחה עד ${formatAbsoluteHe(m.snoozedUntil, { withTime: false })}${m.snoozeReason ? `: ${m.snoozeReason}` : ""}`
+        : null,
+  }));
+
+  const tasksSheet = <TripTasksPanel items={taskRows} />;
 
   const hero = (
     <>

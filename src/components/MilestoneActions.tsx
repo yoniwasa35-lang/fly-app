@@ -5,6 +5,7 @@ import type { QueueItem } from "@/lib/queue/today";
 import {
   completeMilestoneAction,
   prepareMessageAction,
+  reopenMilestoneAction,
   settleSupplierCostAction,
   skipMilestoneAction,
   snoozeMilestoneAction,
@@ -17,7 +18,7 @@ import { tap } from "@/lib/ui/feedback";
 
 /**
  * כפתור אחד שמבצע את הפעולה — סעיף 8.1. לא ניווט למסך שממנו אפשר לבצע.
- * הפעולות המשניות (דחייה, ויתור) מאחורי "⋯", כדי שהשורה תישאר צפופה
+ * הפעולות המשניות (דחייה, ביטול) מאחורי "⋯", כדי שהשורה תישאר צפופה
  * ושהעין תיפול על הפעולה הנכונה.
  *
  * אבן דרך שפונה ללקוח פותחת את נוסח ההודעה מוכן לשליחה (סעיף 9);
@@ -122,7 +123,7 @@ export function MilestoneActions({ item }: { item: QueueItem }) {
     return (
       <div className="actions wide">
         <input autoFocus value={reason} onChange={(e) => setReason(e.target.value)}
-          placeholder={isSkip ? "למה מוותרים על זה?" : "למה דוחים בשבוע?"}
+          placeholder={isSkip ? "למה מבטלים את זה?" : "למה דוחים בשבוע?"}
           aria-label="סיבה" style={{ flex: 1, minWidth: "10rem" }} />
         <button className="btn-primary" disabled={pending || !reason.trim()}
           onClick={() =>
@@ -130,7 +131,7 @@ export function MilestoneActions({ item }: { item: QueueItem }) {
               ? skipMilestoneAction(item.id, reason)
               : snoozeMilestoneAction(item.id, 7, reason)))
           }>
-          {isSkip ? "ויתור" : "דחייה בשבוע"}
+          {isSkip ? "ביטול המשימה" : "דחייה בשבוע"}
         </button>
         <button className="btn-quiet" onClick={() => { setMode("idle"); setReason(""); }}>ביטול</button>
         {error && <span className="tag tag-overdue">{error}</span>}
@@ -142,8 +143,26 @@ export function MilestoneActions({ item }: { item: QueueItem }) {
     return (
       <div className="actions">
         <button className="btn-quiet" disabled={pending} onClick={() => setMode("snooze")}>דחייה</button>
-        <button className="btn-quiet" disabled={pending} onClick={() => setMode("skip")}>ויתור</button>
+        <button className="btn-quiet" disabled={pending} onClick={() => setMode("skip")}>ביטול</button>
         <button className="btn-quiet more" onClick={() => setMode("idle")} aria-label="סגירה">×</button>
+      </div>
+    );
+  }
+
+  /*
+   * משימה סגורה מקבלת פעולה אחת: להחזיר אותה לפתוח. הפונקציה הזו קיימת
+   * בשרת מהיום הראשון ומעולם לא היה לה כפתור — וזה מה שהפך כל סימון
+   * לבלתי הפיך.
+   */
+  const closed = item.state === "done" || item.state === "skipped";
+
+  if (closed) {
+    return (
+      <div className="actions">
+        {error && <span className="tag tag-overdue">{error}</span>}
+        <button className="btn-quiet" disabled={pending} onClick={() => run(() => reopenMilestoneAction(item.id))}>
+          החזרה לפתוח
+        </button>
       </div>
     );
   }

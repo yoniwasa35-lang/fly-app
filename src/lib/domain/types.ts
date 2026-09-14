@@ -67,7 +67,13 @@ export const MILESTONE_STATE_HE: Record<MilestoneState, string> = {
   overdue: "עבר מועד",
   blocked: "חסום",
   done: "בוצע",
-  skipped: "נדחה",
+  /*
+   * "בוטל" ולא "נדחה". דחייה היא פעולה אחרת לגמרי במערכת — היא מזיזה את
+   * המועד קדימה (snoozedUntil) והמשימה חוזרת. skipped אומר שוויתרנו
+   * עליה. שני השמות היו זהים, ושני מצבים שונים בשם אחד הם בלבול שמגיע
+   * עד לשאלה "למה זה עדיין פתוח".
+   */
+  skipped: "בוטל",
 };
 
 export const CLIENT_RESPONSE_HE: Record<ClientResponse, string> = {

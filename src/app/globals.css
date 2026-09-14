@@ -3135,3 +3135,98 @@ button, .btn, .tile, .person, .trip-card, .menu-row {
   padding-block: 0.55rem;
   margin-block: -0.55rem;
 }
+
+/* ========================= צ׳ק-ליסט המשימות =========================
+ * לחיצה על העיגול סוגרת, לחיצה נוספת מחזירה. הצבע הוא התוצאה, לא כפתור.
+ */
+
+.task-list { list-style: none; margin: 0; padding: 0; }
+
+.task + .task { border-top: 1px solid var(--border); }
+
+.task-main {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-3) 0;
+}
+
+.task-check {
+  flex: none;
+  width: var(--tap);
+  min-width: var(--tap);
+  height: var(--tap);
+  min-height: var(--tap);
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  display: grid;
+  place-items: center;
+  color: transparent;
+}
+
+/* העיגול עצמו קטן מהיעד — היעד הוא 44, הצורה היא 24. */
+.task-check::before {
+  content: "";
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-strong);
+  transition: background var(--fast) var(--ease), border-color var(--fast) var(--ease);
+}
+
+.task-check { position: relative; }
+.task-check svg { position: relative; width: 15px; height: 15px; }
+
+.task-check.is-overdue::before { border-color: var(--overdue); }
+.task-check.is-due::before { border-color: var(--due); }
+
+.task-check.is-done::before { background: var(--done); border-color: var(--done); }
+.task-check.is-done { color: #ffffff; }
+
+.task-check.is-skipped::before { background: var(--surface-3); border-color: var(--border-strong); }
+.task-check.is-skipped { color: var(--text-faint); }
+
+.task-check:disabled { opacity: 0.45; cursor: not-allowed; }
+.task-check:hover:not(:disabled)::before { border-color: var(--text); }
+
+.task-body { flex: 1; min-width: 0; display: grid; gap: 2px; padding-top: var(--sp-2); }
+.task-title { font-size: var(--fs-sm); font-weight: 550; line-height: 1.35; }
+.task-meta { font-size: var(--fs-2xs); color: var(--text-soft); line-height: 1.5; }
+
+.task.is-closed .task-title { color: var(--text-faint); text-decoration: line-through; }
+.task.is-closed .task-meta { color: var(--text-faint); }
+
+.task-more {
+  flex: none;
+  width: var(--tap);
+  min-width: var(--tap);
+  height: var(--tap);
+  min-height: var(--tap);
+  padding: 0;
+  border-radius: 50%;
+  color: var(--text-faint);
+}
+
+.task-more svg { width: 18px; height: 18px; }
+
+.task-actions { padding: 0 0 var(--sp-3) calc(var(--tap) + var(--sp-3)); }
+.task-actions .actions { flex-wrap: wrap; gap: var(--sp-2); }
+
+/*
+ * רגע ירוק לפני שהשורה יורדת מהתור. הסימון נקלט בעין, ואז המסך חוזר
+ * להציג רק את מה שנשאר — בלי להפוך לקיר של מה שכבר טופל.
+ *
+ * :has() ולא מחלקה שמישהו מוסיף ב-JavaScript: מצב ה"בוצע" כבר חי בתוך
+ * רכיב הפעולות, ואין סיבה להעביר אותו החוצה רק כדי לצבוע מסגרת.
+ */
+.row:has(.actions.is-done) {
+  border-color: var(--done);
+  background: color-mix(in srgb, var(--done-bg) 70%, var(--surface));
+}
+
+.row:has(.actions.is-done)::before { background: var(--done); }
+
+/* דפדפן ישן בלי :has() פשוט לא יצבע. הפעולה עצמה עובדת בדיוק אותו דבר. */
