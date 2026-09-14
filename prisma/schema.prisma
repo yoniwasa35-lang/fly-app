@@ -63,6 +63,11 @@ model Trip {
   supplierCost       Float  @default(0) // משוערת, בעת ההזמנה
   actualSupplierCost Float? // בפועל. null = עדיין לא נסגר
 
+  // הסוכנות המארחת גובה נתח מההפרש. השיעור נשמר על התיק ולא כקבוע גלובלי,
+  // כדי ששינוי בהסכם מול הסוכנות לא ישכתב רטרואקטיבית את הנתונים של עונה
+  // שכבר נסגרה.
+  hostFeeRate Float @default(0.01)
+
   source String? // המלצה, פרסום, לקוח חוזר
   notes  String?
 

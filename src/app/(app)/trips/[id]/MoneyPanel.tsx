@@ -2,25 +2,30 @@
 
 import { useState, useTransition } from "react";
 import { recordPaymentAction, settleSupplierCostAction, updateFinanceAction } from "@/app/actions";
-import { shekels, tripFinance } from "@/lib/trips/finance";
+import { ratePct, shekels, tripFinance } from "@/lib/trips/finance";
 
 /**
  * פאנל הכספים — סעיף 8.3.
  *
- * מודל ההכנסה: מתמחרים מעל עלות הספק ומרוויחים את ההפרש. לכן אין כאן שדה
- * "עמלה" — הרווח נגזר. מה שמזינים זה מחיר ועלות, ואחרי הנסיעה את העלות
- * האמיתית, שכמעט תמיד שונה מהמשוערת.
+ * מודל ההכנסה: מתמחרים מעל עלות הספק ומרוויחים את ההפרש, והסוכנות המארחת
+ * גובה נתח מההפרש. לכן אין כאן שדה "עמלה" — הרווח נגזר. מה שמזינים זה מחיר
+ * ועלות, ואחרי הנסיעה את העלות האמיתית, שכמעט תמיד שונה מהמשוערת.
+ *
+ * המספר הראשי הוא הנטו, אחרי הנתח. ברוטו לבדו הוא מספר שמשקר כלפי מעלה.
  *
  * זו לא הנהלת חשבונות (סעיף 3), רק מעקב סכומים.
  */
 export function MoneyPanel({
-  tripId, priceToClient, supplierCost, actualSupplierCost, amountPaid, settleMilestoneId,
+  tripId, priceToClient, supplierCost, actualSupplierCost, amountPaid, hostFeeRate,
+  hostName, settleMilestoneId,
 }: {
   tripId: string;
   priceToClient: number;
   supplierCost: number;
   actualSupplierCost: number | null;
   amountPaid: number;
+  hostFeeRate: number;
+  hostName: string;
   /** אבן הדרך של סגירת הרווח, אם היא עדיין פתוחה. */
   settleMilestoneId: string | null;
 }) {
@@ -30,7 +35,7 @@ export function MoneyPanel({
   const [settling, setSettling] = useState(false);
   const [paid, setPaid] = useState(String(amountPaid));
 
-  const f = tripFinance({ priceToClient, supplierCost, actualSupplierCost, amountPaid });
+  const f = tripFinance({ priceToClient, supplierCost, actualSupplierCost, amountPaid, hostFeeRate });
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>) => {
     setError(null);
@@ -63,10 +68,12 @@ export function MoneyPanel({
           <span className="k">עלות ספקים {f.settled && "(משוערת)"}</span>
           <span className="v num">{shekels(f.supplierCost)}</span>
         </div>
-        <div className={`money-cell ${f.settled ? "" : f.expectedMargin > 0 ? "good" : "warn"}`}>
-          <span className="k">רווח צפוי</span>
-          <span className="v num">{shekels(f.expectedMargin)}</span>
-          <span className="sub num">{f.expectedMarginPct.toFixed(0)}%</span>
+        <div className={`money-cell ${f.settled ? "" : f.expected.net > 0 ? "good" : "warn"}`}>
+          <span className="k">רווח צפוי, נטו</span>
+          <span className="v num">{shekels(f.expected.net)}</span>
+          <span className="sub num">
+            {f.expected.netPct.toFixed(0)}% · ברוטו {shekels(f.expected.gross)}
+          </span>
         </div>
 
         {f.settled ? (
@@ -75,12 +82,12 @@ export function MoneyPanel({
               <span className="k">עלות בפועל</span>
               <span className="v num">{shekels(f.actualSupplierCost as number)}</span>
             </div>
-            <div className={`money-cell ${(f.marginGap ?? 0) < 0 ? "warn" : "good"}`}>
-              <span className="k">רווח בפועל</span>
-              <span className="v num">{shekels(f.actualMargin as number)}</span>
+            <div className={`money-cell ${(f.netGap ?? 0) < 0 ? "warn" : "good"}`}>
+              <span className="k">רווח בפועל, נטו</span>
+              <span className="v num">{shekels(f.actual!.net)}</span>
               <span className="sub num">
-                {(f.actualMarginPct as number).toFixed(0)}%
-                {f.marginGap !== 0 && ` · ${f.marginGap! > 0 ? "+" : ""}${shekels(f.marginGap as number)} מהצפוי`}
+                {f.actual!.netPct.toFixed(0)}%
+                {f.netGap !== 0 && ` · ${f.netGap! > 0 ? "+" : ""}${shekels(f.netGap as number)} מהצפוי`}
               </span>
             </div>
           </>
@@ -92,6 +99,12 @@ export function MoneyPanel({
           </div>
         )}
       </div>
+
+      <p className="hint" style={{ marginTop: "0.5rem" }}>
+        {hostName} גובה <span className="num">{ratePct(f.hostFeeRate)}</span> מההפרש —{" "}
+        <span className="num">{shekels((f.actual ?? f.expected).hostFee)}</span> בתיק הזה.
+        הנטו הוא מה שנשאר אחרי הנתח.
+      </p>
 
       {error && <div className="error" style={{ margin: "0.6rem 0 0" }}>{error}</div>}
 

@@ -15,6 +15,7 @@ import {
 } from "@/lib/domain/types";
 import { buildDesiredMilestones } from "@/lib/milestones/engine";
 import { loadTripSnapshot, parseBlockers } from "@/lib/milestones/sync";
+import { hostAgencyName } from "@/lib/trips/finance";
 import { airportLabel } from "@/lib/time/airports";
 import { DISPLAY_TZ, formatAbsoluteHe, formatRelativeHe, utcToZoned } from "@/lib/time/zones";
 import { ComponentsPanel } from "./ComponentsPanel";
@@ -198,6 +199,8 @@ export default async function TripPage({
         supplierCost={trip.supplierCost}
         actualSupplierCost={trip.actualSupplierCost}
         amountPaid={trip.amountPaid}
+        hostFeeRate={trip.hostFeeRate}
+        hostName={hostAgencyName()}
         settleMilestoneId={
           trip.milestones.find((m) => m.key === "close_actual_commission" && isOpenState(m.state))?.id ?? null
         }

@@ -50,6 +50,14 @@ export function checkEnv(): { errors: string[]; warnings: string[] } {
     }
   }
 
+  const rate = process.env.HOST_AGENCY_FEE_RATE;
+  if (rate?.trim()) {
+    const value = Number(rate);
+    if (!Number.isFinite(value) || value < 0 || value >= 1) {
+      errors.push(`HOST_AGENCY_FEE_RATE לא תקין: "${rate}". צריך מספר בין 0 ל-1, למשל 0.01`);
+    }
+  }
+
   if (!process.env.DIRECT_DATABASE_URL?.trim()) {
     warnings.push("DIRECT_DATABASE_URL לא מוגדר. אם הספק שלכם משתמש ב-pooler, מיגרציות ייכשלו.");
   }

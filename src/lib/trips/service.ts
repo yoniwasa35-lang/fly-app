@@ -6,6 +6,7 @@
 import { prisma } from "../db";
 import { checkinWindow } from "../airlines/checkin";
 import { encryptPassport, passportLast4 } from "../crypto/passport";
+import { configuredHostFeeRate } from "./finance";
 import { airportTz } from "../time/airports";
 import { DISPLAY_TZ, utcToZoned, zonedToUtc } from "../time/zones";
 import { refreshTripStates, syncTrip } from "../milestones/sync";
@@ -103,6 +104,9 @@ export async function createTrip(input: NewTripInput): Promise<{ id: string; cod
         priceToClient: input.priceToClient ?? 0,
         supplierCost: input.supplierCost ?? 0,
         amountPaid: input.amountPaid ?? 0,
+        // נשמר על התיק כדי ששינוי עתידי בהסכם מול הסוכנות המארחת לא ישכתב
+        // רטרואקטיבית את הנתונים של עונה שכבר נסגרה.
+        hostFeeRate: configuredHostFeeRate(),
         source: input.source ?? null,
         notes: input.notes ?? null,
       },
