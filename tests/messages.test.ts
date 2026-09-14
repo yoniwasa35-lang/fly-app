@@ -156,6 +156,7 @@ describe("ערכי המשתנים מתיק אמיתי", () => {
   });
 
   const ctx: MessageContext = {
+    publicUrl: "https://example.com/c/abc",
     trip: {
       code: "2608-101",
       destination: "אתונה",
@@ -253,5 +254,36 @@ describe("תווי כיווניות רק במקום שצריך", () => {
       { "שם_פרטי": "דנה", "מספר_טיסה": "W6 4351", "שעת_יציאה": "07:40" },
     );
     expect(stripBidi(out.text)).toBe("היי דנה,\nהטיסה W6 4351 יוצאת ב-07:40.\nנתראה.");
+  });
+});
+
+describe("הקישור לעמוד הלקוח בהודעות", () => {
+  it("נכנס לתבנית ומקודד נכון בכתובת הוואטסאפ", async () => {
+    const { publicTripUrl } = await import("@/lib/trips/publicToken");
+    const saved = process.env.PUBLIC_BASE_URL;
+    process.env.PUBLIC_BASE_URL = "https://example.com/";
+
+    const url = publicTripUrl("Ab3-_xyz");
+    expect(url).toBe("https://example.com/c/Ab3-_xyz");
+
+    const out = renderTemplate("פרטי הנסיעה כאן: {{קישור_ללקוח}}", { "קישור_ללקוח": url });
+    const link = whatsAppLink("0501234567", out.text);
+    if (!link.ok) throw new Error(link.reason);
+    expect(decodeURIComponent(link.url.split("?text=")[1])).toContain(url);
+
+    process.env.PUBLIC_BASE_URL = saved;
+  });
+
+  it("בלי PUBLIC_BASE_URL הקישור ריק, וההודעה נחסמת במקום לשלוח כתובת שבורה", async () => {
+    const { publicTripUrl } = await import("@/lib/trips/publicToken");
+    const saved = process.env.PUBLIC_BASE_URL;
+    delete process.env.PUBLIC_BASE_URL;
+
+    expect(publicTripUrl("abc")).toBe("");
+    const out = renderTemplate("כאן: {{קישור_ללקוח}}", { "קישור_ללקוח": "" });
+    expect(out.missing[0]).toEqual({ name: "קישור_ללקוח", envVar: "PUBLIC_BASE_URL" });
+    expect(out.text).toContain("{{קישור_ללקוח}}");
+
+    if (saved) process.env.PUBLIC_BASE_URL = saved;
   });
 });

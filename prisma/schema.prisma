@@ -71,6 +71,11 @@ model Trip {
   source String? // המלצה, פרסום, לקוח חוזר
   notes  String?
 
+  // עמוד הלקוח (סעיף 8.4) יושב על URL פתוח, בלי התחברות — הקישור עצמו הוא
+  // הסוד. לכן הטוקן אקראי קריפטוגרפית ולא נגזר מה-id, וניתן להחלפה אם
+  // הלקוח העביר את הקישור הלאה.
+  publicToken String @unique
+
   travelers  Traveler[]
   components Component[]
   milestones Milestone[]
@@ -153,10 +158,12 @@ model Flight {
   departsTz      String
   departsAirport String
   departsAtUtc   DateTime
-  arrivesAtLocal String
+  // שעת הנחיתה אינה תמיד ידועה בזמן פתיחת התיק. היא nullable בכוונה:
+  // עדיף שדה ריק מאשר להעתיק לתוכו את שעת ההמראה, כי הערך הזה מוצג ללקוח.
+  arrivesAtLocal String?
   arrivesTz      String
   arrivesAirport String
-  arrivesAtUtc   DateTime
+  arrivesAtUtc   DateTime?
 
   // מחושבים מטבלת הכללים לפי חברת תעופה, ניתנים לדריסה ידנית.
   checkinOpensAt    DateTime?

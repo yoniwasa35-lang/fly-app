@@ -45,6 +45,7 @@ export async function previewTemplateAction(body: string): Promise<{
   const win = checkinWindow({ airlineCode: "A3", departsAtLocal: departsAt, departsTz: "Europe/Athens" });
 
   const sample: MessageContext = {
+    publicUrl: "https://example.com/c/דוגמה",
     trip: {
       code: "2608-101",
       destination: "אתונה",

@@ -6,6 +6,7 @@ import { prisma } from "../db";
 import { renderTemplate } from "./render";
 import { getTemplate } from "./store";
 import { buildVariableValues, type MessageContext } from "./variables";
+import { publicTripUrl } from "../trips/publicToken";
 import { normalizePhone } from "./phone";
 import { whatsAppLink } from "./whatsapp";
 
@@ -54,6 +55,7 @@ export async function prepareMessage(
     trip.components.find((c) => c.flight && c.status !== "cancelled");
 
   const context: MessageContext = {
+    publicUrl: publicTripUrl(trip.publicToken),
     trip: {
       code: trip.code,
       destination: trip.destination,

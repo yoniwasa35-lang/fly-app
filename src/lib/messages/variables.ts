@@ -31,6 +31,7 @@ export const VARIABLES: VariableDoc[] = [
   { name: "שולם", description: "כמה שולם עד כה", example: "4,000 ₪" },
   { name: "יתרה", description: "היתרה לתשלום", example: "10,200 ₪" },
   { name: "רכיבים", description: "רשימת הרכיבים המאושרים בתיק", example: "טיסה, מלון" },
+  { name: "קישור_ללקוח", description: "הקישור האישי לעמוד הנסיעה של הלקוח", example: "https://…/c/xxxx" },
   { name: "שם_סוכן", description: "שם הסוכן לחתימה (משתנה סביבה AGENT_NAME)", example: "יוני" },
   { name: "שם_סוכנות", description: "שם העסק (משתנה סביבה AGENCY_NAME)", example: "נסיעות" },
   { name: "טלפון_חירום", description: "מספר החירום לנסיעה (משתנה סביבה AGENT_EMERGENCY_PHONE)", example: "050-0000000" },
@@ -39,6 +40,8 @@ export const VARIABLES: VariableDoc[] = [
 export const VARIABLE_NAMES = new Set(VARIABLES.map((v) => v.name));
 
 export type MessageContext = {
+  /** הקישור לעמוד הלקוח. ריק אם לא הוגדר PUBLIC_BASE_URL. */
+  publicUrl: string;
   trip: {
     code: string;
     destination: string;
@@ -114,6 +117,7 @@ export function buildVariableValues(ctx: MessageContext): Record<string, string>
     "שולם": shekels(trip.amountPaid),
     "יתרה": shekels(trip.priceToClient - trip.amountPaid),
     "רכיבים": confirmed.map((c) => COMPONENT_TYPE_HE[c.type as ComponentType] ?? c.type).join(", "),
+    "קישור_ללקוח": ctx.publicUrl,
     "שם_סוכן": process.env.AGENT_NAME?.trim() ?? "",
     "שם_סוכנות": process.env.AGENCY_NAME?.trim() ?? "",
     "טלפון_חירום": process.env.AGENT_EMERGENCY_PHONE?.trim() ?? "",
@@ -122,6 +126,7 @@ export function buildVariableValues(ctx: MessageContext): Record<string, string>
 
 /** באילו משתנה סביבה תלוי משתנה תבנית — להודעת שגיאה מועילה. */
 export const ENV_BACKED: Record<string, string> = {
+  "קישור_ללקוח": "PUBLIC_BASE_URL",
   "שם_סוכן": "AGENT_NAME",
   "שם_סוכנות": "AGENCY_NAME",
   "טלפון_חירום": "AGENT_EMERGENCY_PHONE",

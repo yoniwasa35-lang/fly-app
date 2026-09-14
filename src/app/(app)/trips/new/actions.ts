@@ -19,8 +19,10 @@ const schema = z.object({
   returnTime: z.string().regex(/^\d{2}:\d{2}$/, "שעת חזרה חסרה"),
   outboundAirline: z.string().trim().optional(),
   outboundFlightNumber: z.string().trim().optional(),
+  outboundArrivesTime: z.string().regex(/^\d{2}:\d{2}$/).optional().or(z.literal("")),
   inboundAirline: z.string().trim().optional(),
   inboundFlightNumber: z.string().trim().optional(),
+  inboundArrivesTime: z.string().regex(/^\d{2}:\d{2}$/).optional().or(z.literal("")),
   bookedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")),
   priceToClient: z.coerce.number().min(0).default(0),
   amountPaid: z.coerce.number().min(0).default(0),
@@ -62,8 +64,12 @@ export async function createTripAction(
       returnAirport: v.returnAirport,
       outboundAirline: v.outboundAirline || null,
       outboundFlightNumber: v.outboundFlightNumber || null,
+      // הנחיתה היא באותו תאריך כמו ההמראה ברוב הטיסות מישראל. אם היא
+      // למחרת, הסוכן יתקן בתיק — עדיף להשאיר ריק מאשר לנחש.
+      outboundArrivesLocal: v.outboundArrivesTime ? `${v.departureDate}T${v.outboundArrivesTime}` : null,
       inboundAirline: v.inboundAirline || null,
       inboundFlightNumber: v.inboundFlightNumber || null,
+      inboundArrivesLocal: v.inboundArrivesTime ? `${v.returnDate}T${v.inboundArrivesTime}` : null,
       bookedAt: v.bookedDate ? zonedToUtc(`${v.bookedDate}T12:00`, DISPLAY_TZ) : undefined,
       travelers: [],
       priceToClient: v.priceToClient,

@@ -10,6 +10,7 @@ import {
 import {
   markCheckinDone,
   recordPayment,
+  rotatePublicToken,
   setComponentStatus,
   settleSupplierCost,
   updateFinance,
@@ -97,5 +98,12 @@ export async function settleSupplierCostAction(
   return guard(async () => {
     await settleSupplierCost(tripId, actualSupplierCost);
     if (milestoneId) await completeMilestone(milestoneId);
+  });
+}
+
+/** החלפת הקישור לעמוד הלקוח. הישן מפסיק לעבוד מיד. */
+export async function rotatePublicTokenAction(tripId: string): Promise<ActionResult> {
+  return guard(async () => {
+    await rotatePublicToken(tripId);
   });
 }

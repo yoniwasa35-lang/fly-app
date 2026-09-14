@@ -98,6 +98,11 @@ export function NewTripForm({
             <input id="outboundFlightNumber" name="outboundFlightNumber" inputMode="numeric" placeholder="971" />
           </div>
         </div>
+        <div className="field">
+          <label htmlFor="outboundArrivesTime">שעת נחיתה ביעד (לא חובה)</label>
+          <input id="outboundArrivesTime" name="outboundArrivesTime" type="time" />
+          <p className="hint">מוצגת ללקוח. אם לא תוזן, פשוט לא תופיע — עדיף מאשר שעה שגויה.</p>
+        </div>
       </div>
 
       <div className="card">
@@ -135,6 +140,10 @@ export function NewTripForm({
             <label htmlFor="inboundFlightNumber">מספר טיסה</label>
             <input id="inboundFlightNumber" name="inboundFlightNumber" inputMode="numeric" placeholder="972" />
           </div>
+        </div>
+        <div className="field">
+          <label htmlFor="inboundArrivesTime">שעת נחיתה בארץ (לא חובה)</label>
+          <input id="inboundArrivesTime" name="inboundArrivesTime" type="time" />
         </div>
       </div>
 

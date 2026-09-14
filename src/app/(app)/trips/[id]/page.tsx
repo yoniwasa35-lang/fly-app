@@ -18,6 +18,9 @@ import { loadTripSnapshot, parseBlockers } from "@/lib/milestones/sync";
 import { hostAgencyName } from "@/lib/trips/finance";
 import { airportLabel } from "@/lib/time/airports";
 import { DISPLAY_TZ, formatAbsoluteHe, formatRelativeHe, utcToZoned } from "@/lib/time/zones";
+import { publicTripUrl } from "@/lib/trips/publicToken";
+import { whatsAppLink } from "@/lib/messages/whatsapp";
+import { ClientLinkPanel } from "./ClientLinkPanel";
 import { ComponentsPanel } from "./ComponentsPanel";
 import { DepartureEditor } from "./DepartureEditor";
 import { MoneyPanel } from "./MoneyPanel";
@@ -205,6 +208,21 @@ export default async function TripPage({
           trip.milestones.find((m) => m.key === "close_actual_commission" && isOpenState(m.state))?.id ?? null
         }
       />
+
+      {(() => {
+        const url = publicTripUrl(trip.publicToken);
+        const message = `היי, הנה עמוד הנסיעה שלכם ל${trip.destination}: ${url}`;
+        const wa = url ? whatsAppLink(trip.client.phone, message) : null;
+        return (
+          <ClientLinkPanel
+            tripId={trip.id}
+            url={url}
+            clientName={trip.client.name}
+            destination={trip.destination}
+            waUrl={wa?.ok ? wa.url : null}
+          />
+        );
+      })()}
 
       {/* ------------------------------ שינוי העוגן ------------------------------ */}
       <DepartureEditor

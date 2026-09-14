@@ -6,6 +6,7 @@
 import { prisma } from "../db";
 import { checkinWindow } from "../airlines/checkin";
 import { encryptPassport, passportLast4 } from "../crypto/passport";
+import { newPublicToken } from "./publicToken";
 import { configuredHostFeeRate } from "./finance";
 import { airportTz } from "../time/airports";
 import { DISPLAY_TZ, utcToZoned, zonedToUtc } from "../time/zones";
@@ -23,8 +24,11 @@ export type NewTripInput = {
   /** אופציונלי. בלי זה התיק נוצר בלי טיסות ואבני הדרך של הצ'ק-אין ייווצרו מאוחר יותר. */
   outboundAirline?: string | null;
   outboundFlightNumber?: string | null;
+  /** שעת נחיתה מקומית ביעד, אם ידועה. */
+  outboundArrivesLocal?: string | null;
   inboundAirline?: string | null;
   inboundFlightNumber?: string | null;
+  inboundArrivesLocal?: string | null;
   /**
    * מתי שולם. התיק נולד ברגע התשלום (סעיף 5), ולא ברגע ההקלדה — ההבדל
    * קריטי כשמזינים תיקים קיימים, שכולם שולמו לפני שבועות.
@@ -107,6 +111,7 @@ export async function createTrip(input: NewTripInput): Promise<{ id: string; cod
         // נשמר על התיק כדי ששינוי עתידי בהסכם מול הסוכנות המארחת לא ישכתב
         // רטרואקטיבית את הנתונים של עונה שכבר נסגרה.
         hostFeeRate: configuredHostFeeRate(),
+        publicToken: newPublicToken(),
         source: input.source ?? null,
         notes: input.notes ?? null,
       },
@@ -140,7 +145,8 @@ export async function createTrip(input: NewTripInput): Promise<{ id: string; cod
         flightNumber: input.outboundFlightNumber ?? "",
         departsAtLocal: input.departureLocal,
         departsAirport: input.departureAirport,
-        arrivesAtLocal: input.departureLocal,
+        // שעת הנחיתה לא נקלטת בפתיחת התיק. משאירים ריק ולא ממציאים.
+        arrivesAtLocal: input.outboundArrivesLocal ?? null,
         arrivesAirport: input.returnAirport,
       });
     }
@@ -153,7 +159,7 @@ export async function createTrip(input: NewTripInput): Promise<{ id: string; cod
         flightNumber: input.inboundFlightNumber ?? "",
         departsAtLocal: input.returnLocal,
         departsAirport: input.returnAirport,
-        arrivesAtLocal: input.returnLocal,
+        arrivesAtLocal: input.inboundArrivesLocal ?? null,
         arrivesAirport: input.departureAirport,
       });
     }
@@ -177,7 +183,7 @@ async function createFlightComponent(
     flightNumber: string;
     departsAtLocal: string;
     departsAirport: string;
-    arrivesAtLocal: string;
+    arrivesAtLocal: string | null;
     arrivesAirport: string;
   },
 ) {
@@ -213,7 +219,7 @@ async function createFlightComponent(
       arrivesAtLocal: params.arrivesAtLocal,
       arrivesTz,
       arrivesAirport: params.arrivesAirport.toUpperCase(),
-      arrivesAtUtc: zonedToUtc(params.arrivesAtLocal, arrivesTz),
+      arrivesAtUtc: params.arrivesAtLocal ? zonedToUtc(params.arrivesAtLocal, arrivesTz) : null,
       checkinOpensAt: win.opensAt,
       checkinClosesAt: win.closesAt,
     },
@@ -287,6 +293,13 @@ export async function markCheckinDone(componentId: string, done: boolean): Promi
 export async function recordPayment(tripId: string, amountPaid: number): Promise<void> {
   await prisma.trip.update({ where: { id: tripId }, data: { amountPaid } });
   await refreshTripStates(tripId);
+}
+
+/** החלפת הקישור ללקוח, אם הוא הודלף או הועבר הלאה. */
+export async function rotatePublicToken(tripId: string): Promise<string> {
+  const token = newPublicToken();
+  await prisma.trip.update({ where: { id: tripId }, data: { publicToken: token } });
+  return token;
 }
 
 /**
