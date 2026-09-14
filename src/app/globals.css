@@ -1011,3 +1011,53 @@ button.btn-quiet.inline {
 }
 
 .checkbox input { width: auto; min-height: auto; }
+
+/* ------------------------ טופס פתיחת תיק ---------------------------- */
+
+.client-matches {
+  list-style: none;
+  margin: 0.3rem 0 0;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.client-matches li + li { border-top: 1px solid var(--border); }
+
+.client-matches button {
+  display: block;
+  width: 100%;
+  text-align: start;
+  border: none;
+  border-radius: 0;
+  background: var(--surface);
+  padding: 0.5rem 0.6rem;
+  min-height: auto;
+}
+
+.client-matches button:hover { background: var(--future-bg); }
+.client-matches .hint { display: block; }
+
+.returning {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.6rem;
+  background: var(--done-bg);
+  border-radius: 8px;
+  padding: 0.6rem 0.7rem;
+}
+
+details.collapse.form-more { margin: 0.75rem; }
+
+details.collapse.form-more > summary {
+  color: var(--text);
+  display: block;
+}
+
+details.collapse.form-more > summary .hint {
+  display: block;
+  font-weight: 400;
+  margin-top: 0.1rem;
+}

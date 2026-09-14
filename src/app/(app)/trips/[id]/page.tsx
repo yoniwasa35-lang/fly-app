@@ -34,10 +34,10 @@ export default async function TripPage({
   params, searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ created?: string }>;
+  searchParams: Promise<{ created?: string; copied?: string }>;
 }) {
   const { id } = await params;
-  const { created } = await searchParams;
+  const { created, copied } = await searchParams;
 
   const trip = await prisma.trip.findUnique({
     where: { id },
@@ -74,7 +74,12 @@ export default async function TripPage({
         <Link className="btn" href="/">היום</Link>
       </header>
 
-      {created && <div className="notice">התיק נפתח. אבני הדרך נוצרו ומופיעות למטה.</div>}
+      {created && (
+        <div className="notice">
+          התיק נפתח. אבני הדרך נוצרו ומופיעות למטה.
+          {copied && <> {copied} נוסעים הועתקו מהתיק הקודם — כדאי לוודא שהדרכונים עדיין בתוקף.</>}
+        </div>
+      )}
 
       {/*
         סעיף 8.3 — בעיה פתוחה מוצגת כהתראה מפורשת בטקסט, לא כאייקון.

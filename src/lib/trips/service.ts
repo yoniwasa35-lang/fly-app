@@ -15,7 +15,10 @@ import { refreshTripStates, syncTrip } from "../milestones/sync";
 import type { AnchorChangeSummary } from "../milestones/reconcile";
 
 export type NewTripInput = {
+  /** לקוח חדש. מתעלמים ממנו אם הועבר existingClientId. */
   client: { name: string; phone: string; email?: string | null };
+  /** לקוח חוזר — לא נוצר לקוח חדש, והתיק מתחבר לקיים. */
+  existingClientId?: string | null;
   destination: string;
   templateId: string;
   departureLocal: string;
@@ -86,9 +89,11 @@ export async function createTrip(input: NewTripInput): Promise<{ id: string; cod
   const code = await nextTripCode(departureAt);
 
   const trip = await prisma.$transaction(async (tx) => {
-    const client = await tx.client.create({
-      data: { name: input.client.name, phone: input.client.phone, email: input.client.email ?? null },
-    });
+    const client = input.existingClientId
+      ? await tx.client.findUniqueOrThrow({ where: { id: input.existingClientId }, select: { id: true } })
+      : await tx.client.create({
+          data: { name: input.client.name, phone: input.client.phone, email: input.client.email ?? null },
+        });
 
     const created = await tx.trip.create({
       data: {
@@ -374,4 +379,93 @@ export async function updateTripDetails(
   });
   // היעד משפיע על דרישת תוקף הדרכון רק אם היא תלוית יעד; הסנכרון זול ובטוח.
   await refreshTripStates(tripId);
+}
+
+export type ReturningClient = {
+  id: string;
+  name: string;
+  phone: string;
+  tripCount: number;
+  lastDestination: string | null;
+  /** נוסעים מהתיק האחרון, מוכנים להעתקה. */
+  travelerCount: number;
+};
+
+/**
+ * חיפוש לקוח קיים. "לקוח חוזר" הוא אחד ממקורות ההגעה שהסוכנים ציינו,
+ * ובשבילו כל הפרטים כבר במערכת — כולל דרכונים. הקלדה מחדש שלהם היא גם
+ * בזבוז זמן וגם מקור לטעויות.
+ */
+export async function findClients(query: string): Promise<ReturningClient[]> {
+  const q = query.trim();
+  if (q.length < 2) return [];
+
+  const clients = await prisma.client.findMany({
+    where: {
+      OR: [
+        { name: { contains: q, mode: "insensitive" } },
+        { phone: { contains: q.replace(/\D/g, "") || q } },
+      ],
+    },
+    take: 6,
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true, name: true, phone: true,
+      trips: {
+        orderBy: { departureAt: "desc" },
+        take: 1,
+        select: { destination: true, _count: { select: { travelers: true } } },
+      },
+      _count: { select: { trips: true } },
+    },
+  });
+
+  return clients.map((c) => ({
+    id: c.id,
+    name: c.name,
+    phone: c.phone,
+    tripCount: c._count.trips,
+    lastDestination: c.trips[0]?.destination ?? null,
+    travelerCount: c.trips[0]?._count.travelers ?? 0,
+  }));
+}
+
+/**
+ * העתקת הנוסעים מהתיק האחרון של הלקוח. מספר דרכון של תיק שנסגר כבר נמחק
+ * (סעיף 10), ואז מועתקים רק השם והתוקף — וזה עדיין חוסך את רוב ההקלדה.
+ */
+export async function copyTravelersFromLastTrip(
+  clientId: string,
+  toTripId: string,
+): Promise<{ copied: number; withoutPassport: number }> {
+  const source = await prisma.trip.findFirst({
+    where: { clientId, id: { not: toTripId }, travelers: { some: {} } },
+    orderBy: { departureAt: "desc" },
+    select: { travelers: true },
+  });
+  if (!source) return { copied: 0, withoutPassport: 0 };
+
+  let withoutPassport = 0;
+  for (const t of source.travelers) {
+    if (!t.passportNumberEnc) withoutPassport++;
+    await prisma.traveler.create({
+      data: {
+        tripId: toTripId,
+        firstNameLatin: t.firstNameLatin,
+        lastNameLatin: t.lastNameLatin,
+        displayNameHe: t.displayNameHe,
+        passportNumberEnc: t.passportNumberEnc,
+        passportLast4: t.passportLast4,
+        passportExpiry: t.passportExpiry,
+        passportCountry: t.passportCountry,
+        dateOfBirth: t.dateOfBirth,
+        phone: t.phone,
+        isLead: t.isLead,
+      },
+    });
+  }
+
+  // תוקף הדרכון נבדק מול היעד החדש, ולכן ייתכן שנוצרת אבן דרך אדומה חדשה.
+  await syncTrip(toTripId);
+  return { copied: source.travelers.length, withoutPassport };
 }
