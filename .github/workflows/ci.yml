@@ -1,0 +1,72 @@
+# שער איכות לפני העלייה לאוויר.
+#
+# Vercel פורס כל דחיפה לענף הראשי היישר לאתר החי. בניית next נופלת על
+# שגיאת טיפוס, ולכן שגיאה כזו לעולם לא מגיעה לפרודקשן — אבל באג לוגי
+# שעובר קומפילציה כן היה מגיע. 209 הבדיקות הן מה שתופס אותו, והן חייבות
+# לרוץ אוטומטית: בדיקה שצריך לזכור להריץ אינה בדיקה.
+#
+# הריצה עולה כשלוש דקות ורצה במקביל לבניית Vercel. אם היא אדומה, זה
+# הסימן להחזיר את השינוי לפני שמישהו עובד מול מערכת שבורה.
+
+name: בדיקות
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    # מסד אמיתי, לא מדומה: חלק מהבדיקות בודקות שאילתות, מיון ואילוצים —
+    # דברים שמוק לא יכול להעיד עליהם.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: fly
+          POSTGRES_PASSWORD: fly
+          POSTGRES_DB: flyapp_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      TEST_DATABASE_URL: postgresql://fly:fly@127.0.0.1:5432/flyapp_test?schema=public
+      DATABASE_URL: postgresql://fly:fly@127.0.0.1:5432/flyapp_test?schema=public
+      DIRECT_DATABASE_URL: postgresql://fly:fly@127.0.0.1:5432/flyapp_test?schema=public
+
+      # ערכים סינתטיים בלבד. הסודות האמיתיים חיים ב-Vercel ואין להם מה
+      # לעשות כאן — בדיקה שצריכה סוד אמיתי היא בדיקה שבודקת את הדבר הלא נכון.
+      APP_PASSCODE: ci-passcode-not-a-real-one
+      SESSION_SECRET: Y2ktc2Vzc2lvbi1zZWNyZXQtZm9yLXRlc3RzLTMyYnk=
+      PASSPORT_ENCRYPTION_KEY: Y2ktcGFzc3BvcnQta2V5LWZvci10ZXN0cy0zMmJ5dGU=
+      DAILY_JOB_TOKEN: ci-daily-job-token
+      AGENT_NAME: בדיקה
+      AGENCY_NAME: בדיקה
+      AGENT_EMERGENCY_PHONE: "050-0000000"
+      HOST_AGENCY_FEE_RATE: "0.01"
+      HOST_AGENCY_NAME: Travel Or
+      PUBLIC_BASE_URL: https://example.invalid
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx prisma generate
+
+      - name: בדיקת טיפוסים
+        run: npm run typecheck
+
+      - name: בדיקות
+        run: npm test
