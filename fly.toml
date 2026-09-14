@@ -1,0 +1,38 @@
+# פריסה ל-Fly.io. מי שפורס ב-Vercel יכול למחוק את הקובץ הזה ואת ה-Dockerfile.
+#
+#   fly launch --no-deploy
+#   fly postgres create            # ואז fly postgres attach <שם>
+#   fly secrets set APP_PASSCODE=... SESSION_SECRET=... \
+#                   PASSPORT_ENCRYPTION_KEY=... DAILY_JOB_TOKEN=...
+#   fly deploy
+
+app = "fly-app"
+primary_region = "cdg"   # קרוב לישראל יחסית; אפשר גם fra
+
+[build]
+  dockerfile = "Dockerfile"
+
+# המיגרציות רצות פעם אחת לפני שהגרסה החדשה מקבלת תעבורה.
+[deploy]
+  release_command = "npx prisma migrate deploy"
+
+[env]
+  PORT = "3000"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    path = "/api/health"
+    timeout = "5s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

@@ -6,28 +6,41 @@
 המטרה של השלב הזה, כלשון האפיון, היא לבדוק שהתור באמת עובד — לכן אין עדיין
 עמוד לקוח, אין הודעות וואטסאפ, ואין פאנל כספים מלא.
 
-## הרצה
+## הרצה מקומית
+
+צריך PostgreSQL. הכי פשוט דרך Docker:
+
+```bash
+docker run -d --name flyapp-db -p 5432:5432 \
+  -e POSTGRES_USER=fly -e POSTGRES_PASSWORD=fly -e POSTGRES_DB=flyapp postgres:16
+```
+
+ואז:
 
 ```bash
 npm install
-cp .env.example .env          # ואז למלא PASSPORT_ENCRYPTION_KEY
-npm run db:push               # יצירת מסד הנתונים
+cp .env.example .env          # ולמלא את המפתחות, ראו למטה
+npm run db:migrate            # יצירת הטבלאות
 npm run db:seed               # שלושה תיקי הדגמה (אופציונלי)
 npm run dev                   # http://localhost:3000
 ```
 
-ליצירת מפתח ההצפנה:
+ליצירת `SESSION_SECRET` ו-`PASSPORT_ENCRYPTION_KEY` (כל אחד בנפרד):
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 ```
 
+`APP_PASSCODE` היא הסיסמה המשותפת לשניכם. בפרודקשן היא חייבת להיות באורך
+12 תווים לפחות, אחרת השרת לא יעלה.
+
 פקודות נוספות:
 
 ```bash
-npm test          # 59 בדיקות יחידה על מנוע אבני הדרך וחישובי הזמן
+npm test          # 69 בדיקות יחידה
 npm run typecheck
-npm run job:daily # ה-job היומי (סעיף 10) — אפשר גם POST /api/jobs/daily
+npm run db:studio # דפדפן למסד הנתונים
+npm run job:daily # ה-job היומי מהטרמינל
 ```
 
 ## מה נבנה
@@ -43,6 +56,86 @@ npm run job:daily # ה-job היומי (סעיף 10) — אפשר גם POST /api/
 | מסך "היום" (8.1) | `src/app/page.tsx` + `src/lib/queue/today.ts` |
 | מסך תיק בודד (8.3) | `src/app/trips/[id]/page.tsx` |
 | ה-job היומי (סעיף 10) | `src/lib/jobs/daily.ts` |
+| כניסה למערכת | `src/middleware.ts` + `src/lib/auth/session.ts` |
+
+## העלאה לאוויר
+
+שתי דרכים. **בחרו אחת ומחקו את הקבצים של השנייה** — אין טעם להחזיק את שתיהן.
+
+### א׳ — Vercel (מומלץ)
+
+הכי פחות תחזוקה, ו-Next.js רץ שם באופן טבעי.
+
+1. **מסד נתונים.** פתחו פרויקט ב-[Neon](https://neon.tech) (יש שכבה חינמית
+   שמספיקה בקלות). קחו משם שתי כתובות: את זו של ה-pooler ואת החיבור הישיר.
+2. **ייבוא הרפוזיטורי** ל-Vercel. הוא יזהה Next.js לבד.
+3. **משתני סביבה** (Settings → Environment Variables), כולם ל-Production:
+
+   | משתנה | ערך |
+   | --- | --- |
+   | `DATABASE_URL` | כתובת ה-pooler של Neon |
+   | `DIRECT_DATABASE_URL` | החיבור הישיר של Neon |
+   | `APP_PASSCODE` | הסיסמה המשותפת, 12 תווים ומעלה |
+   | `SESSION_SECRET` | 32 בתים ב-base64 |
+   | `PASSPORT_ENCRYPTION_KEY` | 32 בתים ב-base64 |
+   | `DAILY_JOB_TOKEN` | מחרוזת אקראית ארוכה |
+   | `CRON_SECRET` | אותו ערך כמו `DAILY_JOB_TOKEN` |
+
+4. **Deploy.** סקריפט `vercel-build` מריץ `prisma migrate deploy` לפני הבנייה,
+   כך שהטבלאות נוצרות מעצמן.
+5. **ה-cron כבר מוגדר** ב-`vercel.json` — 03:30 UTC, כלומר 06:30 בחורף ו-06:30
+   בקיץ שעון ישראל. במסלול Hobby מותר cron אחד ביום; אם אתם ב-Pro, אפשר לצופף.
+
+`Dockerfile` ו-`fly.toml` מיותרים במסלול הזה.
+
+### ב׳ — Fly.io או כל מקום שמריץ קונטיינר
+
+```bash
+fly launch --no-deploy
+fly postgres create                    # ואז: fly postgres attach <שם>
+fly secrets set APP_PASSCODE=... SESSION_SECRET=... \
+                PASSPORT_ENCRYPTION_KEY=... DAILY_JOB_TOKEN=...
+fly deploy
+```
+
+`fly.toml` כבר מגדיר `release_command` שמריץ את המיגרציות לפני שהגרסה החדשה
+מקבלת תעבורה, ובדיקת חיים מול `/api/health`.
+
+מה ש-Fly לא נותן לבד הוא cron. אפשר מכל מתזמן חיצוני:
+
+```bash
+curl -X POST https://<האפליקציה>.fly.dev/api/jobs/daily \
+     -H "Authorization: Bearer $DAILY_JOB_TOKEN"
+```
+
+`vercel.json` מיותר במסלול הזה.
+
+### אחרי הפריסה, בכל מסלול
+
+1. היכנסו ל-`/` — אתם אמורים להיות מופנים ל-`/login`.
+2. הריצו את ה-job ידנית פעם אחת עם ה-curl שלמעלה, ותראו שהוא מחזיר JSON.
+3. פתחו תיק אמיתי אחד וראו שאבני הדרך נוצרות במועדים שנראים לכם נכונים.
+
+## אבטחה
+
+האפיון אומר "בלי הרשאות ובלי חלוקת תיקים" (סעיף 3), כלומר אין משתמשים ואין
+תפקידים. הוא לא אומר שהמערכת פתוחה: היא מחזיקה מספרי דרכון, תאריכי לידה
+וטלפונים. לכן:
+
+- **מנעול אחד.** סיסמה משותפת, עוגייה חתומה ב-HMAC, תוקף 30 יום. הכל חסום
+  חוץ מ-`/login`, `/api/health` ו-`/api/jobs/`.
+- **מספרי דרכון מוצפנים** ב-AES-256-GCM ונמחקים בסגירת תיק.
+- **השרת לא עולה** בפרודקשן בלי כל המפתחות, ולא עם סיסמה קצרה מ-12 תווים.
+- **ה-job היומי** דורש טוקן, והשוואת הטוקנים והסיסמה נעשית בזמן קבוע.
+- **המערכת מסומנת `noindex`** ולא תופיע במנועי חיפוש.
+
+מה שעדיין חסר ושווה לדעת:
+
+- ההאטה על ניסיונות סיסמה נשמרת בזיכרון התהליך. היא מתאפסת בכל פריסה ואינה
+  משותפת בין מופעים. מול ניחוש ידני זה מספיק; ההגנה האמיתית היא אורך הסיסמה.
+- אין יומן פעולות. אם תרצו לדעת מי סימן מה ומתי, זה שינוי נפרד.
+- הגיבוי הוא באחריות ספק מסד הנתונים. ב-Neon יש point-in-time; ב-Fly צריך
+  להגדיר `fly postgres backup` בעצמכם. **תבדקו שזה עובד לפני שנכנסים לעונה.**
 
 ## מה אפשר לערוך בלי מפתח
 
@@ -59,9 +152,8 @@ npm run job:daily # ה-job היומי (סעיף 10) — אפשר גם POST /api/
 
 ## החלטות שהתקבלו
 
-**סטאק.** Next.js + Prisma + SQLite, שכבה אחת שתשרת בהמשך גם את עמוד הלקוח
-(סעיף 10). SQLite מספיק לשני משתמשים; מעבר ל-Postgres הוא שינוי שורה אחת
-ב-`schema.prisma`. אין Tailwind ואין ספריית תאריכים — RTL וזמנים נכתבו ידנית
+**סטאק.** Next.js + Prisma + PostgreSQL, שכבה אחת שתשרת בהמשך גם את עמוד
+הלקוח (סעיף 10). אין Tailwind ואין ספריית תאריכים — RTL וזמנים נכתבו ידנית
 כי שניהם קריטיים ולא רציתי להסתיר אותם מאחורי הפשטה.
 
 **אזורי זמן.** כל זמן שנתון בשעון שדה תעופה נשמר כזוג (שעה מקומית נאיבית,

@@ -1,10 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import Link from "next/link";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "תיקי נסיעה",
   description: "ניהול מחזור חיי נסיעה",
+  icons: { icon: "/icon.svg", apple: "/icon.svg" },
+  // המערכת מחזיקה פרטי לקוחות. אין סיבה שתופיע במנועי חיפוש.
+  robots: { index: false, follow: false },
 };
 
 export const viewport: Viewport = {
@@ -17,13 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="he" dir="rtl">
       <body>
-        <div className="app">
-          <nav className="nav">
-            <Link href="/">היום</Link>
-            <Link href="/trips">כל התיקים</Link>
-          </nav>
-          {children}
-        </div>
+        <div className="app">{children}</div>
       </body>
     </html>
   );

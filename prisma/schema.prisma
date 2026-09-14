@@ -1,15 +1,17 @@
 // מודל הנתונים — סעיף 5 באפיון.
-// SQLite לפיתוח. המודל יחסי טהור ועובר ל-Postgres בשינוי provider בלבד.
-// SQLite לא תומך ב-enum, לכן ערכי enum נשמרים כמחרוזות ומאולצים בשכבת TypeScript
-// (src/lib/domain/types.ts) ובוולידציית zod בכניסה למערכת.
+// PostgreSQL. ערכי enum נשמרים כמחרוזות ומאולצים בשכבת TypeScript
+// (src/lib/domain/types.ts) ובוולידציית zod בכניסה למערכת — לא כ-enum של
+// המסד, כדי שהוספת סוג רכיב או מצב אבן דרך לא תדרוש מיגרציה.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // חיבור ישיר, בלי pooler — נדרש למיגרציות מול Neon ודומיו.
+  directUrl = env("DIRECT_DATABASE_URL")
 }
 
 model Client {
