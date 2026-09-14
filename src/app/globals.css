@@ -3018,3 +3018,8 @@ details.collapse.trip-alerts > summary { color: var(--overdue); }
   margin: var(--sp-3) 0;
   background: var(--surface-2);
 }
+
+/* עריכה בתוך קטע הטיסה — כפתור שקט בקצה השורה, לא כפתור ראשי */
+.leg-edit { margin-inline-start: auto; min-height: 32px; font-size: var(--fs-2xs); padding-inline: var(--sp-3); }
+.leg-head { flex-wrap: wrap; }
+.leg-line { margin: 0; font-size: var(--fs-lg); font-weight: 600; letter-spacing: -0.01em; }

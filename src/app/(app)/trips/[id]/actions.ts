@@ -291,3 +291,41 @@ export async function closeTripAction(tripId: string): Promise<{ error?: string;
     return { error: e instanceof Error ? e.message : "סגירת התיק נכשלה" };
   }
 }
+
+/**
+ * יוצר רכיב מלון ואת פרטי השהייה שלו בבת אחת.
+ *
+ * עד עכשיו היה צריך להוסיף רכיב מסוג מלון במסך אחד ואז למלא את פרטיו
+ * במסך אחר. שני שלבים לפעולה אחת הם בדיוק המקום שבו מישהו מוותר.
+ */
+export async function addHotelAction(
+  tripId: string,
+  name: string,
+): Promise<{ error?: string; componentId?: string }> {
+  const clean = name.trim();
+  if (clean.length < 2) return { error: "צריך שם מלון" };
+
+  try {
+    const last = await prisma.component.findFirst({
+      where: { tripId }, orderBy: { sortOrder: "desc" }, select: { sortOrder: true },
+    });
+
+    const c = await prisma.component.create({
+      data: {
+        tripId,
+        type: "hotel",
+        status: "requested",
+        supplier: clean,
+        sortOrder: (last?.sortOrder ?? -1) + 1,
+        stay: { create: { name: clean } },
+      },
+      select: { id: true },
+    });
+
+    await syncTrip(tripId);
+    revalidatePath("/", "layout");
+    return { componentId: c.id };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "הוספת המלון נכשלה" };
+  }
+}

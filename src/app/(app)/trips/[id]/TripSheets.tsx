@@ -71,7 +71,7 @@ export function TripSheets({
     message: "מה תרצו לשלוח?",
     menu: "פעולות",
     edit: "עריכת נסיעה",
-    booking: "פרטי ההזמנה",
+    booking: "רכיבים נוספים",
     link: "קישור ללקוח",
   };
 
@@ -171,7 +171,7 @@ export function TripSheets({
           </li>
           <li>
             <button type="button" onClick={() => setOpen("booking")}>
-              <span>פרטי ההזמנה — טיסות, מלון, רכיבים</span>
+              <span>רכיבים נוספים — העברות, ביטוח, אטרקציות</span>
               <Icon name="chevron" />
             </button>
           </li>

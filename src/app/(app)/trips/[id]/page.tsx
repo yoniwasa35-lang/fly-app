@@ -32,9 +32,9 @@ import { TripSettingsPanel } from "./TripSettingsPanel";
 import { DepartureEditor } from "./DepartureEditor";
 import { MoneyPanel } from "./MoneyPanel";
 import { DocumentsPanel } from "./DocumentsPanel";
-import { StayEditor } from "./StayEditor";
+import { FlightsPanel, type FlightRow } from "./FlightsPanel";
+import { HotelPanel } from "./HotelPanel";
 import { CoverEditor } from "./CoverEditor";
-import { BOARD_BASIS_HE, isBoardBasis, starsLabel } from "@/lib/trips/stay";
 import { NextAction } from "./TripCard";
 import { TripSheets, type Tile } from "./TripSheets";
 
@@ -186,145 +186,91 @@ export default async function TripPage({
 
   /* ------------------------------ החלונות ------------------------------ */
 
+  const flightRows: FlightRow[] = trip.components
+    .filter((c) => c.type === "flight")
+    .map((c) => {
+      const f = c.flight;
+      const filled = !!f && !!f.airlineCode && !!f.flightNumber;
+      return {
+        componentId: c.id,
+        direction: (f?.direction as "outbound" | "inbound") ?? "outbound",
+        line: filled
+          ? `${f!.departsAirport} ${f!.departsAtLocal.slice(11, 16)} ← ${f!.arrivesAirport}${f!.arrivesAtLocal ? ` ${f!.arrivesAtLocal.slice(11, 16)}` : ""}`
+          : null,
+        dateLabel: f?.departsAtLocal
+          ? formatAbsoluteHe(new Date(`${f.departsAtLocal.slice(0, 10)}T12:00:00Z`), { withTime: false })
+          : null,
+        flightNumber: filled ? `${f!.airlineCode} ${f!.flightNumber}` : null,
+        baggage: f?.baggageAllowance ?? null,
+        checkinDone: f?.checkinDone ?? false,
+        defaults: {
+          componentId: c.id,
+          direction: (f?.direction as "outbound" | "inbound") ?? "outbound",
+          airlineCode: f?.airlineCode ?? "",
+          flightNumber: f?.flightNumber ?? "",
+          departsAirport: f?.departsAirport ?? trip.departureAirport,
+          departsDate: f?.departsAtLocal?.slice(0, 10) ?? trip.departureLocal.slice(0, 10),
+          departsTime: f?.departsAtLocal?.slice(11, 16) ?? trip.departureLocal.slice(11, 16),
+          arrivesAirport: f?.arrivesAirport ?? trip.returnAirport,
+          arrivesDate: f?.arrivesAtLocal?.slice(0, 10) ?? "",
+          arrivesTime: f?.arrivesAtLocal?.slice(11, 16) ?? "",
+          baggageAllowance: f?.baggageAllowance ?? "",
+        },
+      };
+    });
+
   const flightsSheet = (
-    <>
-      {flightCount === 0 ? (
-        <p className="hint">עוד לא הוזנו טיסות. אפשר להוסיף אותן מ"פרטי ההזמנה" בתפריט.</p>
-      ) : (
-        [summary.outbound, summary.inbound].map((f, i) =>
-          f ? (
-            <article key={i} className="leg">
-              <header className="leg-head">
-                <strong>{f.direction === "outbound" ? "הלוך" : "חזור"}</strong>
-                <span className="c-muted">
-                  {formatAbsoluteHe(
-                    new Date(`${f.date}T12:00:00Z`),
-                    { withTime: false },
-                  )}
-                </span>
-              </header>
-
-              <div className="leg-route">
-                <div>
-                  <span className="leg-time num">{f.time}</span>
-                  <span className="leg-place ltr">{f.fromAirport}</span>
-                </div>
-                <span className="leg-arrow">
-                  <Icon name="arrow" />
-                </span>
-                <div>
-                  {f.arrivesTime ? (
-                    <span className="leg-time num">{f.arrivesTime}</span>
-                  ) : (
-                    <span className="leg-time c-time-unknown" aria-label="שעת נחיתה לא ידועה">··</span>
-                  )}
-                  <span className="leg-place ltr">{f.toAirport}</span>
-                </div>
-              </div>
-
-              <dl className="c-details">
-                <dt>טיסה</dt>
-                <dd className="ltr">{f.airlineCode} {f.flightNumber}</dd>
-                {f.baggage && (
-                  <>
-                    <dt>כבודה</dt>
-                    <dd>{f.baggage}</dd>
-                  </>
-                )}
-                {f.checkinDone && (
-                  <>
-                    <dt>צ׳ק-אין</dt>
-                    <dd className="c-done">
-                      <Icon name="check" />
-                      <span>בוצע</span>
-                    </dd>
-                  </>
-                )}
-              </dl>
-            </article>
-          ) : null,
-        )
-      )}
-    </>
+    <FlightsPanel tripId={trip.id} flights={flightRows} airports={airports} airlines={airlines} />
   );
 
   const hotelComponent = trip.components.find((c) => c.type === "hotel" && c.status !== "cancelled");
-
   const stay = hotelComponent?.stay ?? null;
 
-  const hotelSheet = hotelComponent ? (
-    <>
-      <h3 className="leg-title">{stay?.name || hotelComponent.supplier || hotelComponent.description || "מלון"}</h3>
-      <dl className="c-details">
-        {stay?.stars && (
-          <>
-            <dt>דירוג</dt>
-            <dd>{starsLabel(stay.stars)}</dd>
-          </>
-        )}
-        {stay?.roomType && (
-          <>
-            <dt>חדר</dt>
-            <dd>{stay.roomType}</dd>
-          </>
-        )}
-        {isBoardBasis(stay?.boardBasis) && (
-          <>
-            <dt>אירוח</dt>
-            <dd>{BOARD_BASIS_HE[stay.boardBasis]}</dd>
-          </>
-        )}
-        {stay?.address && (
-          <>
-            <dt>כתובת</dt>
-            <dd>{stay.address}</dd>
-          </>
-        )}
-        <dt>תאריכים</dt>
-        <dd>
-          <span className="num">{formatAbsoluteHe(trip.departureAt, { withTime: false })}</span>
-          {" – "}
-          <span className="num">{formatAbsoluteHe(trip.returnAt, { withTime: false })}</span> ·{" "}
-          {summary.nights} לילות
-        </dd>
-        {hotelComponent.description && hotelComponent.supplier && (
-          <>
-            <dt>פרטים</dt>
-            <dd>{hotelComponent.description}</dd>
-          </>
-        )}
-        {hotelComponent.reference && (
-          <>
-            <dt>מספר הזמנה</dt>
-            <dd className="num">{hotelComponent.reference}</dd>
-          </>
-        )}
-        <dt>סטטוס</dt>
-        <dd>{COMPONENT_STATUS_HE[hotelComponent.status as ComponentStatus] ?? hotelComponent.status}</dd>
-      </dl>
-      <details className="collapse form-more" style={{ margin: "var(--sp-4) 0 0" }}>
-        <summary>
-          עריכת פרטי המלון
-          <span className="hint">מה שנכנס לכאן מופיע בעמוד שהלקוח מקבל</span>
-        </summary>
-        <StayEditor
-          initial={{
-            componentId: hotelComponent.id,
-            name: stay?.name ?? hotelComponent.supplier ?? "",
-            roomType: stay?.roomType ?? "",
-            boardBasis: stay?.boardBasis ?? "",
-            checkInTime: stay?.checkInTime ?? "",
-            checkOutTime: stay?.checkOutTime ?? "",
-            officialUrl: stay?.officialUrl ?? "",
-            voucherUrl: stay?.voucherUrl ?? "",
-            address: stay?.address ?? "",
-            stars: stay?.stars ? String(stay.stars) : "",
-          }}
-        />
-      </details>
-    </>
-  ) : (
-    <p className="hint">עוד לא הוזן מלון. אפשר להוסיף אותו מ"פרטי ההזמנה" בתפריט.</p>
+  const hotelSummary = (
+    <dl className="c-details">
+      <dt>תאריכים</dt>
+      <dd>
+        <span className="num">{formatAbsoluteHe(trip.departureAt, { withTime: false })}</span>
+        {" – "}
+        <span className="num">{formatAbsoluteHe(trip.returnAt, { withTime: false })}</span> ·{" "}
+        {summary.nights} לילות
+      </dd>
+      {hotelComponent?.reference && (
+        <>
+          <dt>מספר הזמנה</dt>
+          <dd className="num">{hotelComponent.reference}</dd>
+        </>
+      )}
+      {hotelComponent && (
+        <>
+          <dt>סטטוס</dt>
+          <dd>{COMPONENT_STATUS_HE[hotelComponent.status as ComponentStatus] ?? hotelComponent.status}</dd>
+        </>
+      )}
+    </dl>
+  );
+
+  const hotelSheet = (
+    <HotelPanel
+      tripId={trip.id}
+      summary={hotelSummary}
+      initial={
+        hotelComponent
+          ? {
+              componentId: hotelComponent.id,
+              name: stay?.name ?? hotelComponent.supplier ?? "",
+              roomType: stay?.roomType ?? "",
+              boardBasis: stay?.boardBasis ?? "",
+              checkInTime: stay?.checkInTime ?? "",
+              checkOutTime: stay?.checkOutTime ?? "",
+              officialUrl: stay?.officialUrl ?? "",
+              voucherUrl: stay?.voucherUrl ?? "",
+              address: stay?.address ?? "",
+              stars: stay?.stars ? String(stay.stars) : "",
+            }
+          : null
+      }
+    />
   );
 
   const tasksSheet = (
