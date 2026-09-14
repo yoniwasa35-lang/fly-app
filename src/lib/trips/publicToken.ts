@@ -16,11 +16,28 @@ export function looksLikePublicToken(value: string): boolean {
 }
 
 /**
- * הכתובת המלאה לעמוד הלקוח. בלי PUBLIC_BASE_URL אין דרך לדעת תחת איזה
- * דומיין המערכת רצה, ולכן מוחזרת מחרוזת ריקה — וההודעה שמשתמשת בקישור
- * תיחסם לפני שליחה במקום לשלוח כתובת שבורה.
+ * הכתובת הבסיסית של המערכת.
+ *
+ * PUBLIC_BASE_URL גובר תמיד — הוא מה שמגדירים כשיש דומיין משלכם. בלעדיו,
+ * על Vercel, נלקחת כתובת הפרודקשן שהפלטפורמה מזריקה בעצמה. זה חוסך את
+ * בעיית הביצה והתרנגולת: הכתובת אינה ידועה לפני הפריסה הראשונה, ובלי
+ * הנפילה הזו היה צריך לפרוס, להעתיק את הכתובת, ולפרוס שוב.
+ */
+export function publicBaseUrl(): string {
+  const explicit = process.env.PUBLIC_BASE_URL?.trim();
+  if (explicit) return explicit.replace(/\/+$/, "");
+
+  const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
+  if (vercel) return `https://${vercel.replace(/^https?:\/\//, "").replace(/\/+$/, "")}`;
+
+  return "";
+}
+
+/**
+ * הכתובת המלאה לעמוד הלקוח. אם אין בסיס, מוחזרת מחרוזת ריקה — וההודעה
+ * שמשתמשת בקישור תיחסם לפני שליחה במקום לשלוח כתובת שבורה.
  */
 export function publicTripUrl(token: string): string {
-  const base = process.env.PUBLIC_BASE_URL?.trim().replace(/\/+$/, "");
+  const base = publicBaseUrl();
   return base ? `${base}/c/${token}` : "";
 }

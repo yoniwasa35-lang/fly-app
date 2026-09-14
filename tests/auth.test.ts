@@ -5,6 +5,7 @@ import {
   verifySessionToken,
 } from "@/lib/auth/session";
 import { checkEnv } from "@/lib/env";
+import { withEnv } from "./env-helper";
 
 const SECRET = Buffer.alloc(32, 7).toString("base64");
 const OTHER = Buffer.alloc(32, 9).toString("base64");
@@ -54,12 +55,6 @@ describe("השוואת סיסמה בזמן קבוע", () => {
 });
 
 describe("בדיקת סביבה", () => {
-  const withEnv = (env: Record<string, string | undefined>, fn: () => void) => {
-    const saved = { ...process.env };
-    Object.assign(process.env, env);
-    try { fn(); } finally { process.env = saved; }
-  };
-
   it("סביבה מלאה עוברת", () => {
     withEnv(
       {

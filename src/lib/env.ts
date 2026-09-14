@@ -58,6 +58,12 @@ export function checkEnv(): { errors: string[]; warnings: string[] } {
     }
   }
 
+  if (!process.env.PUBLIC_BASE_URL?.trim() && !process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim()) {
+    warnings.push(
+      "PUBLIC_BASE_URL לא מוגדר ואין כתובת מהפלטפורמה — הודעות שמכילות את הקישור ללקוח ייחסמו לפני שליחה.",
+    );
+  }
+
   if (!process.env.DIRECT_DATABASE_URL?.trim()) {
     warnings.push("DIRECT_DATABASE_URL לא מוגדר. אם הספק שלכם משתמש ב-pooler, מיגרציות ייכשלו.");
   }

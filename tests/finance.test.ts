@@ -8,6 +8,7 @@ import {
 } from "@/lib/trips/finance";
 import { evaluateAutoComplete } from "@/lib/milestones/engine";
 import { makeTrip } from "./fixtures";
+import { withEnv as withEnvKeys } from "./env-helper";
 
 /**
  * מודל ההכנסה: מתמחרים מעל עלות הספק ומרוויחים את ההפרש, והסוכנות המארחת
@@ -80,15 +81,8 @@ describe("רווח התיק", () => {
 });
 
 describe("שיעור הנתח מהסביבה", () => {
-  const withEnv = (value: string | undefined, fn: () => void) => {
-    const saved = process.env.HOST_AGENCY_FEE_RATE;
-    if (value === undefined) delete process.env.HOST_AGENCY_FEE_RATE;
-    else process.env.HOST_AGENCY_FEE_RATE = value;
-    try { fn(); } finally {
-      if (saved === undefined) delete process.env.HOST_AGENCY_FEE_RATE;
-      else process.env.HOST_AGENCY_FEE_RATE = saved;
-    }
-  };
+  const withEnv = (value: string | undefined, fn: () => void) =>
+    withEnvKeys({ HOST_AGENCY_FEE_RATE: value }, fn);
 
   it("ברירת מחדל 1%", () => withEnv(undefined, () => expect(configuredHostFeeRate()).toBe(0.01)));
   it("ערך תקין נקרא", () => withEnv("0.025", () => expect(configuredHostFeeRate()).toBe(0.025)));

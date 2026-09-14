@@ -39,6 +39,10 @@ const GROUP_LIMIT = 200;
 const URGENCY_ORDER: Prisma.MilestoneOrderByWithRelationInput[] = [
   { trip: { departureAt: "asc" } },
   { dueAt: "asc" },
+  // שובר שוויון. בלעדיו הסדר בין פריטים שווי-ערך אינו מובטח, ומאחר
+  // שהקבוצות חסומות בתקרה — פריט היה יכול להיעלם מתחת לה בהרצה אחת
+  // ולהופיע באחרת.
+  { id: "asc" },
 ];
 
 export type QueueItem = {
@@ -166,11 +170,11 @@ export async function getTodayQueue(now: Date = new Date()): Promise<TodayQueue>
     }),
     prisma.milestone.findMany({
       where: { ...visible, bornLate: false, dueAt: { gte: endToday, lt: endWeek } },
-      orderBy: { dueAt: "asc" }, take: GROUP_LIMIT + 1, select,
+      orderBy: [{ dueAt: "asc" }, { id: "asc" }], take: GROUP_LIMIT + 1, select,
     }),
     prisma.milestone.findMany({
       where: { ...visible, bornLate: true },
-      orderBy: { dueAt: "asc" },
+      orderBy: [{ dueAt: "asc" }, { id: "asc" }],
       select: { title: true, trip: { select: TRIP_SELECT } },
     }),
     prisma.milestone.groupBy({

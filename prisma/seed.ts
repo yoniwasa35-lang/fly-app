@@ -15,6 +15,8 @@ function inDays(days: number, time = "08:30"): string {
 }
 
 async function main() {
+  await prisma.loginAttempt.deleteMany();
+  await prisma.messageTemplate.deleteMany();
   await prisma.milestone.deleteMany();
   await prisma.flight.deleteMany();
   await prisma.component.deleteMany();

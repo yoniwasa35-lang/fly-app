@@ -114,7 +114,10 @@ export async function getTimeline(filters: TimelineFilters = {}): Promise<Timeli
     prisma.trip.count({ where }),
     prisma.trip.findMany({
       where,
-      orderBy: { departureAt: "asc" },
+      // המיון חייב להיות מלא, לא רק לפי תאריך. שני תיקים שיוצאים באותו יום
+      // הם מצב נפוץ בעונה, ובלי שובר שוויון הסדר בין שתי שאילתות אינו
+      // מובטח — אותו תיק היה יכול להופיע בשני עמודים ותיק אחר להיעלם.
+      orderBy: [{ departureAt: "asc" }, { id: "asc" }],
       skip: offset,
       take: limit,
       select: {

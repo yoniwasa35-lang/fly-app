@@ -6,6 +6,7 @@ import { whatsAppLink } from "@/lib/messages/whatsapp";
 import { buildVariableValues, firstNameOf, VARIABLES, type MessageContext } from "@/lib/messages/variables";
 import { zonedToUtc } from "@/lib/time/zones";
 import { checkinWindow } from "@/lib/airlines/checkin";
+import { withEnv } from "./env-helper";
 
 describe("נרמול טלפון", () => {
   const ok = (raw: string) => {
@@ -285,5 +286,31 @@ describe("הקישור לעמוד הלקוח בהודעות", () => {
     expect(out.text).toContain("{{קישור_ללקוח}}");
 
     if (saved) process.env.PUBLIC_BASE_URL = saved;
+  });
+});
+
+describe("כתובת הבסיס", () => {
+  it("PUBLIC_BASE_URL גובר על מה שהפלטפורמה מזריקה", async () => {
+    const { publicBaseUrl } = await import("@/lib/trips/publicToken");
+    withEnv(
+      { PUBLIC_BASE_URL: "https://my-domain.co.il/", VERCEL_PROJECT_PRODUCTION_URL: "fly-app.vercel.app" },
+      () => expect(publicBaseUrl()).toBe("https://my-domain.co.il"),
+    );
+  });
+
+  it("בלעדיו נלקחת כתובת הפרודקשן של Vercel", async () => {
+    const { publicBaseUrl } = await import("@/lib/trips/publicToken");
+    withEnv(
+      { PUBLIC_BASE_URL: undefined, VERCEL_PROJECT_PRODUCTION_URL: "fly-app.vercel.app" },
+      () => expect(publicBaseUrl()).toBe("https://fly-app.vercel.app"),
+    );
+  });
+
+  it("בלי שניהם מוחזרת מחרוזת ריקה, כדי שההודעה תיחסם", async () => {
+    const { publicBaseUrl, publicTripUrl } = await import("@/lib/trips/publicToken");
+    withEnv({ PUBLIC_BASE_URL: undefined, VERCEL_PROJECT_PRODUCTION_URL: undefined }, () => {
+      expect(publicBaseUrl()).toBe("");
+      expect(publicTripUrl("abc")).toBe("");
+    });
   });
 });

@@ -209,3 +209,41 @@ describe("ציר החודשים", () => {
     }
   });
 });
+
+describe("יציבות המיון — באג שהתגלה מטסט מרצד", () => {
+  it("עימוד יציב גם כששני תיקים יוצאים באותו יום", async () => {
+    if (!(await hasData())) return;
+
+    // מייצרים במכוון תאריך יציאה משותף, שזה מצב נפוץ בעונה.
+    const trips = await prisma.trip.findMany({
+      where: { status: "active" }, take: 6, select: { id: true, departureAt: true },
+    });
+    if (trips.length < 6) return;
+
+    const shared = trips[0].departureAt;
+    const originals = new Map(trips.map((t) => [t.id, t.departureAt]));
+    await prisma.trip.updateMany({
+      where: { id: { in: trips.map((t) => t.id) } },
+      data: { departureAt: shared },
+    });
+
+    try {
+      // עשר קריאות לאותו עמוד חייבות להחזיר בדיוק את אותם תיקים.
+      const pages = await Promise.all(
+        Array.from({ length: 10 }, () => getTimeline({ windowDays: 365, limit: 3, offset: 0 })),
+      );
+      const first = pages[0].rows.map((r) => r.id).join(",");
+      for (const p of pages) expect(p.rows.map((r) => r.id).join(",")).toBe(first);
+
+      // ושני עמודים עוקבים לא חופפים ולא מדלגים.
+      const a = await getTimeline({ windowDays: 365, limit: 3, offset: 0 });
+      const b = await getTimeline({ windowDays: 365, limit: 3, offset: 3 });
+      const overlap = a.rows.filter((r) => b.rows.some((n) => n.id === r.id));
+      expect(overlap.map((r) => r.code)).toEqual([]);
+    } finally {
+      for (const [id, departureAt] of originals) {
+        await prisma.trip.update({ where: { id }, data: { departureAt } });
+      }
+    }
+  });
+});
