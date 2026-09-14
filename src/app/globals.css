@@ -2925,3 +2925,96 @@ details.collapse.trip-alerts > summary { color: var(--overdue); }
 .doc-state { font-size: var(--fs-2xs); color: var(--text-faint); white-space: nowrap; }
 .doc-row.is-received .doc-state { color: var(--due); }
 .doc-row.is-sent .doc-state { color: var(--done); }
+
+/* ===================== עמוד הלקוח — קאבר ומלון ======================= */
+
+/*
+ * תמונת הקאבר יושבת מתחת לשכבת כהות, ולא במקומה. הטקסט חייב להישאר
+ * קריא מעל כל תמונה — גם מעל חוף לבן בשמש — ולכן הניגודיות לא נסמכת
+ * על התמונה אלא על השכבה שמעליה.
+ */
+.c-hero.has-cover { position: relative; }
+
+.c-hero.has-cover::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: var(--cover);
+  background-size: cover;
+  background-position: center;
+  opacity: 0.55;
+}
+
+.c-hero.has-cover { background-color: #101014; }
+
+.c-hero.has-cover::after {
+  background:
+    radial-gradient(circle, rgba(220, 193, 131, 0.16) 0%, transparent 70%),
+    linear-gradient(to bottom, rgba(16, 16, 20, 0.35) 0%, rgba(16, 16, 20, 0.82) 100%);
+  inset: 0;
+  top: 0;
+  width: auto;
+  height: auto;
+  transform: none;
+}
+
+.c-credit {
+  margin: 0 0 var(--sp-3);
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+}
+
+/* ------------------------------- המלון ------------------------------- */
+
+.c-stay-name {
+  font-size: var(--fs-xl);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.c-stay-rating { margin: var(--sp-1) 0 0; font-size: var(--fs-sm); color: var(--text-soft); }
+
+.c-gallery {
+  display: flex;
+  gap: var(--sp-2);
+  overflow-x: auto;
+  margin: var(--sp-4) calc(var(--sp-5) * -1) 0;
+  padding-inline: var(--sp-5);
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.c-gallery::-webkit-scrollbar { display: none; }
+
+.c-gallery img {
+  flex: none;
+  width: min(78%, 20rem);
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--r-md);
+  scroll-snap-align: start;
+  background: var(--surface-2);
+}
+
+.c-stay-details { margin-top: var(--sp-5); }
+
+.c-stay-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-5);
+}
+
+.c-stay-actions .c-btn { flex: 1; min-width: 8.5rem; }
+
+.cover-preview {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: var(--r-md);
+  margin: var(--sp-3) 0;
+  background: var(--surface-2);
+}

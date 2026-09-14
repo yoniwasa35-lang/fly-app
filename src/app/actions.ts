@@ -16,6 +16,7 @@ import {
   updateFinance,
 } from "@/lib/trips/service";
 import { prepareMessage, prepareTripMessage } from "@/lib/messages/prepare";
+import { saveStay, saveTripCover, type StayInput } from "@/lib/trips/stayService";
 import {
   isDocumentKind,
   isDocumentState,
@@ -179,4 +180,21 @@ export async function prepareTripMessageAction(
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "הכנת ההודעה נכשלה" };
   }
+}
+
+/* ------------------------- מלון ותמונת קאבר -------------------------- */
+
+export async function saveStayAction(
+  componentId: string,
+  input: StayInput,
+): Promise<ActionResult> {
+  return guard(() => saveStay(componentId, input));
+}
+
+export async function saveTripCoverAction(
+  tripId: string,
+  imageUrl: string | null,
+  credit: string | null,
+): Promise<ActionResult> {
+  return guard(() => saveTripCover(tripId, imageUrl, credit));
 }

@@ -83,9 +83,10 @@ describe("מה אסור שיצא החוצה", () => {
 
     expect(Object.keys(view).sort()).toEqual(
       [
-        "agent", "booked", "clientName", "code", "countdown", "departureAt",
-        "departureLabel", "destination", "flights", "inbound", "phase", "returnAt",
-        "returnLabel", "status", "traveling", "travelerCount", "todos", "upsells",
+        "agent", "booked", "clientName", "code", "countdown", "cover", "departureAt",
+        "departureLabel", "destination", "flights", "inbound", "nights", "phase",
+        "returnAt", "returnLabel", "status", "stay", "traveling", "travelerCount",
+        "todos", "upsells",
       ].sort(),
     );
   });
@@ -239,5 +240,81 @@ describe("שעת נחיתה", () => {
     });
     const suspicious = flights.filter((f) => f.arrivesAtLocal && f.arrivesAtLocal === f.departsAtLocal);
     expect(suspicious).toEqual([]);
+  });
+});
+
+describe("המלון בעמוד הלקוח", () => {
+  it("חושף רק את המפתחות המותרים — בלי מזהה מקום ובלי ספק", async () => {
+    const trip = await prisma.trip.findFirst({
+      where: { publicToken: { not: "" } },
+      select: { id: true, publicToken: true, components: { select: { id: true, type: true } } },
+    });
+    if (!trip) return;
+
+    const hotel = trip.components.find((c) => c.type === "hotel");
+    if (!hotel) return;
+
+    await prisma.stay.upsert({
+      where: { componentId: hotel.id },
+      create: {
+        componentId: hotel.id,
+        name: "Test Hotel",
+        placeId: "PLACE_ID_SHOULD_NOT_LEAK",
+        address: "Seaside 25",
+        stars: 5,
+        roomType: "Double",
+        boardBasis: "breakfast",
+        officialUrl: "https://example.com/hotel",
+      },
+      update: { placeId: "PLACE_ID_SHOULD_NOT_LEAK", name: "Test Hotel" },
+    });
+
+    try {
+      const view = (await getPublicTrip(trip.publicToken))!;
+      expect(view.stay).not.toBeNull();
+
+      expect(Object.keys(view.stay!).sort()).toEqual(
+        [
+          "address", "board", "checkInLabel", "checkInTime", "checkOutLabel",
+          "checkOutTime", "mapUrl", "name", "nights", "officialUrl", "photos",
+          "rating", "roomType", "stars", "voucherUrl",
+        ].sort(),
+      );
+
+      /*
+       * מזהה המקום אינו שדה בתשובה — הוא נצרך בשרת כדי לבנות את קישור
+       * המפה, וזהו. (בתוך הקישור עצמו הוא כן מופיע, וזה תקין: מזהה מקום
+       * של גוגל הוא ציבורי, וזו בדיוק הדרך לפתוח את הנקודה הנכונה.)
+       */
+      expect(view.stay).not.toHaveProperty("placeId");
+      expect(view.stay!.mapUrl).toContain("PLACE_ID_SHOULD_NOT_LEAK");
+    } finally {
+      await prisma.stay.delete({ where: { componentId: hotel.id } });
+    }
+  });
+
+  it("כתובת אתר פסולה שנשמרה במסד לא מגיעה ללקוח", async () => {
+    const trip = await prisma.trip.findFirst({
+      where: { publicToken: { not: "" } },
+      select: { publicToken: true, components: { select: { id: true, type: true } } },
+    });
+    if (!trip) return;
+
+    const hotel = trip.components.find((c) => c.type === "hotel");
+    if (!hotel) return;
+
+    await prisma.stay.upsert({
+      where: { componentId: hotel.id },
+      // עוקפים את הוולידציה של השירות בכוונה: מדמים שורה ישנה או פגומה.
+      create: { componentId: hotel.id, name: "Test Hotel", officialUrl: "javascript:alert(1)" },
+      update: { officialUrl: "javascript:alert(1)" },
+    });
+
+    try {
+      const view = (await getPublicTrip(trip.publicToken))!;
+      expect(view.stay?.officialUrl).toBeNull();
+    } finally {
+      await prisma.stay.delete({ where: { componentId: hotel.id } });
+    }
   });
 });

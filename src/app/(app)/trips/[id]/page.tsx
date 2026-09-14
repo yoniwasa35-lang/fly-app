@@ -32,6 +32,9 @@ import { TripSettingsPanel } from "./TripSettingsPanel";
 import { DepartureEditor } from "./DepartureEditor";
 import { MoneyPanel } from "./MoneyPanel";
 import { DocumentsPanel } from "./DocumentsPanel";
+import { StayEditor } from "./StayEditor";
+import { CoverEditor } from "./CoverEditor";
+import { BOARD_BASIS_HE, isBoardBasis, starsLabel } from "@/lib/trips/stay";
 import { NextAction } from "./TripCard";
 import { TripSheets, type Tile } from "./TripSheets";
 
@@ -64,7 +67,7 @@ export default async function TripPage({
     include: {
       client: true,
       travelers: { orderBy: { isLead: "desc" } },
-      components: { include: { flight: true }, orderBy: { sortOrder: "asc" } },
+      components: { include: { flight: true, stay: true }, orderBy: { sortOrder: "asc" } },
       milestones: { orderBy: [{ dueAt: "asc" }] },
     },
   });
@@ -247,10 +250,36 @@ export default async function TripPage({
 
   const hotelComponent = trip.components.find((c) => c.type === "hotel" && c.status !== "cancelled");
 
+  const stay = hotelComponent?.stay ?? null;
+
   const hotelSheet = hotelComponent ? (
     <>
-      <h3 className="leg-title">{hotelComponent.supplier || hotelComponent.description || "מלון"}</h3>
+      <h3 className="leg-title">{stay?.name || hotelComponent.supplier || hotelComponent.description || "מלון"}</h3>
       <dl className="c-details">
+        {stay?.stars && (
+          <>
+            <dt>דירוג</dt>
+            <dd>{starsLabel(stay.stars)}</dd>
+          </>
+        )}
+        {stay?.roomType && (
+          <>
+            <dt>חדר</dt>
+            <dd>{stay.roomType}</dd>
+          </>
+        )}
+        {isBoardBasis(stay?.boardBasis) && (
+          <>
+            <dt>אירוח</dt>
+            <dd>{BOARD_BASIS_HE[stay.boardBasis]}</dd>
+          </>
+        )}
+        {stay?.address && (
+          <>
+            <dt>כתובת</dt>
+            <dd>{stay.address}</dd>
+          </>
+        )}
         <dt>תאריכים</dt>
         <dd>
           <span className="num">{formatAbsoluteHe(trip.departureAt, { withTime: false })}</span>
@@ -273,10 +302,26 @@ export default async function TripPage({
         <dt>סטטוס</dt>
         <dd>{COMPONENT_STATUS_HE[hotelComponent.status as ComponentStatus] ?? hotelComponent.status}</dd>
       </dl>
-      <p className="hint">
-        סוג חדר, בסיס אירוח ושעות צ׳ק-אין יתווספו כשדות נפרדים בשלב הבא. כרגע אפשר
-        לכתוב אותם בשדה הפרטים.
-      </p>
+      <details className="collapse form-more" style={{ margin: "var(--sp-4) 0 0" }}>
+        <summary>
+          עריכת פרטי המלון
+          <span className="hint">מה שנכנס לכאן מופיע בעמוד שהלקוח מקבל</span>
+        </summary>
+        <StayEditor
+          initial={{
+            componentId: hotelComponent.id,
+            name: stay?.name ?? hotelComponent.supplier ?? "",
+            roomType: stay?.roomType ?? "",
+            boardBasis: stay?.boardBasis ?? "",
+            checkInTime: stay?.checkInTime ?? "",
+            checkOutTime: stay?.checkOutTime ?? "",
+            officialUrl: stay?.officialUrl ?? "",
+            voucherUrl: stay?.voucherUrl ?? "",
+            address: stay?.address ?? "",
+            stars: stay?.stars ? String(stay.stars) : "",
+          }}
+        />
+      </details>
     </>
   ) : (
     <p className="hint">עוד לא הוזן מלון. אפשר להוסיף אותו מ"פרטי ההזמנה" בתפריט.</p>
@@ -501,6 +546,12 @@ export default async function TripPage({
           </>
         }
         link={
+          <>
+          <CoverEditor
+            tripId={trip.id}
+            imageUrl={trip.coverImageUrl ?? ""}
+            credit={trip.coverCredit ?? ""}
+          />
           <ClientLinkPanel
             tripId={trip.id}
             url={url}
@@ -508,6 +559,7 @@ export default async function TripPage({
             destination={trip.destination}
             waUrl={wa?.ok ? wa.url : null}
           />
+          </>
         }
       />
     </>

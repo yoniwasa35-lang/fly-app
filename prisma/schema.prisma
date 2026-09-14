@@ -91,6 +91,14 @@ model Trip {
   // הלקוח העביר את הקישור הלאה.
   publicToken String @unique
 
+  /*
+   * תמונת הקאבר של היעד בעמוד הלקוח. נשמרת ככתובת ולא כקובץ, ועם שורת
+   * הקרדיט שלה — רישיון Unsplash מחייב ייחוס, ותמונה בלי קרדיט היא הפרה.
+   * ריק הוא מצב תקין: העמוד נופל לרקע מדורג ולא לתמונה שבורה.
+   */
+  coverImageUrl String?
+  coverCredit   String?
+
   travelers  Traveler[]
   components Component[]
   milestones Milestone[]
@@ -152,6 +160,7 @@ model Component {
 
   sortOrder Int     @default(0)
   flight    Flight?
+  stay      Stay?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -283,4 +292,48 @@ model TripDocument {
 
   @@unique([tripId, kind])
   @@index([tripId])
+}
+
+/**
+ * פרטי השהייה — הרחבה של רכיב מסוג מלון, באותה תבנית של Flight.
+ *
+ * רוב השדות מוזנים בידי הסוכן. מה שמגיע מ-Google Places מסומן ככזה,
+ * ושני כללים חלים עליו:
+ *
+ *   1. אין להמציא כתובת אתר. officialUrl נשאר ריק עד שמישהו הזין אותו
+ *      או עד שספק אמין החזיר אותו, ו-officialUrlSource אומר מי מהשניים.
+ *      כתובת מומצאת בעמוד שהלקוח פותח היא נזק ממשי, לא אי-נוחות.
+ *
+ *   2. תמונות של Places לא נשמרות אצלנו — רישיון השירות אוסר זאת.
+ *      נשמרות רק ההפניות, עם חותמת זמן, והן נמשכות מחדש כשהן מתיישנות.
+ */
+model Stay {
+  componentId String    @id
+  component   Component @relation(fields: [componentId], references: [id], onDelete: Cascade)
+
+  name String
+
+  // --- מה שהסוכן מזין ---
+  roomType     String?
+  boardBasis   String? // room_only | breakfast | half_board | full_board | all_inclusive
+  checkInTime  String? // "HH:MM" בשעון המלון
+  checkOutTime String?
+  officialUrl       String?
+  officialUrlSource String  @default("manual") // manual | places
+  /** קישור לוואוצ׳ר שהספק סיפק. המערכת לא מאחסנת קבצים. */
+  voucherUrl String?
+
+  // --- מה שמגיע מ-Google Places ---
+  placeId     String?
+  address     String?
+  lat         Float?
+  lng         Float?
+  rating      Float?
+  ratingCount Int?
+  stars       Int?
+  /** הפניות תמונה בלבד, לא קבצים. ריק עד שמוגדר מפתח. */
+  photosJson     String?
+  photosCachedAt DateTime?
+
+  updatedAt DateTime @updatedAt
 }

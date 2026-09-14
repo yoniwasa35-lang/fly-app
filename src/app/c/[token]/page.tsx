@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getPublicTrip, type PublicFlight } from "@/lib/trips/publicView";
+import { getPublicTrip, type PublicFlight, type PublicStay } from "@/lib/trips/publicView";
 import { normalizePhone } from "@/lib/messages/phone";
 import { formatRelativeHe } from "@/lib/time/zones";
 import { BrandMark, Wordmark } from "@/components/Brand";
@@ -33,6 +33,95 @@ function HeroBrand() {
       <Wordmark sub />
       <div className="brand-rule" />
     </>
+  );
+}
+
+/**
+ * המלון.
+ *
+ * הלקוח לא צריך לדעת ש"הוזמן Hilton X" — הוא צריך לראות לאן הוא מגיע.
+ * לכן השם גדול, ומתחתיו רק מה שמשרת מישהו שעומד בקבלה: חדר, אירוח,
+ * תאריכים ושעות, וכתובת. הכפתורים מופיעים אחד-אחד, רק כשיש להם יעד
+ * אמיתי — אין כאן כפתור שמוביל לניחוש.
+ */
+function StayCard({ stay }: { stay: PublicStay }) {
+  return (
+    <section className="c-section c-stay">
+      <h2>המלון שלכם</h2>
+
+      <h3 className="c-stay-name">{stay.name}</h3>
+
+      {(stay.stars || stay.rating) && (
+        <p className="c-stay-rating">
+          {stay.stars}
+          {stay.stars && stay.rating && " · "}
+          {stay.rating}
+        </p>
+      )}
+
+      {stay.photos.length > 0 && (
+        <div className="c-gallery">
+          {stay.photos.map((src, i) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img key={i} src={src} alt="" loading="lazy" decoding="async" />
+          ))}
+        </div>
+      )}
+
+      <dl className="c-details c-stay-details">
+        <dt>צ׳ק-אין</dt>
+        <dd>
+          {stay.checkInLabel}
+          {stay.checkInTime && <> · מ-<span className="num">{stay.checkInTime}</span></>}
+        </dd>
+
+        <dt>צ׳ק-אאוט</dt>
+        <dd>
+          {stay.checkOutLabel}
+          {stay.checkOutTime && <> · עד <span className="num">{stay.checkOutTime}</span></>}
+        </dd>
+
+        <dt>לילות</dt>
+        <dd>{stay.nights}</dd>
+
+        {stay.roomType && (
+          <>
+            <dt>חדר</dt>
+            <dd>{stay.roomType}</dd>
+          </>
+        )}
+
+        {stay.board && (
+          <>
+            <dt>אירוח</dt>
+            <dd>{stay.board}</dd>
+          </>
+        )}
+
+        {stay.address && (
+          <>
+            <dt>כתובת</dt>
+            <dd>{stay.address}</dd>
+          </>
+        )}
+      </dl>
+
+      <div className="c-stay-actions">
+        <a className="c-btn" href={stay.mapUrl} target="_blank" rel="noopener noreferrer">
+          פתיחה במפה
+        </a>
+        {stay.officialUrl && (
+          <a className="c-btn" href={stay.officialUrl} target="_blank" rel="noopener noreferrer">
+            האתר של המלון
+          </a>
+        )}
+        {stay.voucherUrl && (
+          <a className="c-btn" href={stay.voucherUrl} target="_blank" rel="noopener noreferrer">
+            צפייה בוואוצ׳ר
+          </a>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -121,11 +210,16 @@ export default async function ClientTripPage({ params }: { params: Promise<{ tok
   const outbound = trip.flights.find((f) => f.direction === "outbound");
   const askAgent = (text: string) => (trip.agent.phone ? waLink(trip.agent.phone, text) : null);
 
+  const coverStyle = trip.cover
+    ? ({ "--cover": `url(${JSON.stringify(trip.cover.url)})` } as React.CSSProperties)
+    : undefined;
+  const heroClass = trip.cover ? " has-cover" : "";
+
   return (
     <main className="client">
       {/* ראש העמוד מתחלף בזמן הנסיעה — סעיף 8.4 */}
       {trip.phase === "returned" ? (
-        <header className="c-hero c-hero-returned">
+        <header className={`c-hero c-hero-returned${heroClass}`} style={coverStyle}>
           <HeroBrand />
           <span className="c-kicker">{trip.clientName}</span>
           <h1>ברוכים השבים</h1>
@@ -137,7 +231,7 @@ export default async function ClientTripPage({ params }: { params: Promise<{ tok
           </p>
         </header>
       ) : trip.phase === "traveling" ? (
-        <header className="c-hero c-hero-traveling">
+        <header className={`c-hero c-hero-traveling${heroClass}`} style={coverStyle}>
           <HeroBrand />
           <span className="c-kicker">אתם ב{trip.destination}</span>
           <h1>שמרו את המספר הזה</h1>
@@ -164,7 +258,7 @@ export default async function ClientTripPage({ params }: { params: Promise<{ tok
           )}
         </header>
       ) : (
-        <header className="c-hero">
+        <header className={`c-hero${heroClass}`} style={coverStyle}>
           <HeroBrand />
           <span className="c-kicker">{trip.clientName}</span>
           <h1>{trip.destination}</h1>
@@ -179,6 +273,8 @@ export default async function ClientTripPage({ params }: { params: Promise<{ tok
           </p>
         </header>
       )}
+
+      {trip.stay && <StayCard stay={trip.stay} />}
 
       {/* מה נשאר מהלקוח */}
       {trip.todos.length > 0 && (
@@ -262,6 +358,7 @@ export default async function ClientTripPage({ params }: { params: Promise<{ tok
       )}
 
       <footer className="c-footer">
+        {trip.cover?.credit && <p className="c-credit">{trip.cover.credit}</p>}
         <Wordmark />
         <br />
         תיק <span className="num">{trip.code}</span>

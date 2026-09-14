@@ -18,8 +18,17 @@ import {
   type TripStatus,
 } from "../domain/types";
 import { airportLabel } from "../time/airports";
+import { nightsBetween } from "./summary";
 import { checkinRule } from "../airlines/checkin";
 import { DISPLAY_TZ, formatAbsoluteHe, formatRelativeHe, utcToZoned } from "../time/zones";
+import {
+  BOARD_BASIS_HE,
+  isBoardBasis,
+  mapUrl,
+  ratingLabel,
+  safeExternalUrl,
+  starsLabel,
+} from "./stay";
 
 export type PublicFlight = {
   direction: "outbound" | "inbound";
@@ -40,6 +49,32 @@ export type PublicFlight = {
   checkinDone: boolean;
   /** נכון רק לחברות שגובות על צ'ק-אין בשדה — משנה את דחיפות ההודעה. */
   lateCheckinCosts: boolean;
+};
+
+/**
+ * המלון כפי שהלקוח רואה אותו.
+ *
+ * מה שאינו כאן חשוב כמו מה שכן: אין עלות, אין ספק, אין מספר ההזמנה של
+ * הסוכן מול הספק. יש את מה שעוזר למי שמגיע לקבלה.
+ */
+export type PublicStay = {
+  name: string;
+  stars: string | null;
+  rating: string | null;
+  address: string | null;
+  roomType: string | null;
+  board: string | null;
+  checkInLabel: string;
+  checkOutLabel: string;
+  checkInTime: string | null;
+  checkOutTime: string | null;
+  nights: number;
+  /** null כשאין — ואז הכפתור פשוט לא מופיע. לא ממציאים כתובת. */
+  officialUrl: string | null;
+  voucherUrl: string | null;
+  mapUrl: string;
+  /** יתמלא כשיוגדר מפתח ל-Places. עד אז ריק, והגלריה לא מוצגת. */
+  photos: string[];
 };
 
 export type PublicBooked = { type: string; description: string; reference: string | null };
@@ -72,6 +107,9 @@ export type PublicTrip = {
   departureLabel: string;
   returnLabel: string;
   travelerCount: number;
+  nights: number;
+  cover: { url: string; credit: string | null } | null;
+  stay: PublicStay | null;
   booked: PublicBooked[];
   flights: PublicFlight[];
   todos: PublicTodo[];
@@ -98,6 +136,8 @@ export async function getPublicTrip(token: string, now = new Date()): Promise<Pu
       status: true,
       departureAt: true,
       returnAt: true,
+      coverImageUrl: true,
+      coverCredit: true,
       priceToClient: true,
       amountPaid: true,
       client: { select: { name: true } },
@@ -113,6 +153,18 @@ export async function getPublicTrip(token: string, now = new Date()): Promise<Pu
               arrivesAtLocal: true, arrivesAirport: true,
               checkinOpensAt: true, checkinClosesAt: true, checkinDone: true,
               baggageAllowance: true,
+            },
+          },
+          /*
+           * רשימה לבנה גם כאן. photosJson ו-placeId נשארים בחוץ: הלקוח
+           * מקבל כתובות תמונה מוכנות, לא מזהים פנימיים.
+           */
+          stay: {
+            select: {
+              name: true, roomType: true, boardBasis: true,
+              checkInTime: true, checkOutTime: true,
+              address: true, stars: true, rating: true, ratingCount: true,
+              officialUrl: true, voucherUrl: true, placeId: true, lat: true, lng: true,
             },
           },
         },
@@ -165,8 +217,9 @@ export async function getPublicTrip(token: string, now = new Date()): Promise<Pu
       };
     });
 
+  // המלון מקבל אזור משלו, ולכן הוא יורד מרשימת "מה כבר סגור".
   const booked: PublicBooked[] = trip.components
-    .filter((c) => c.status === "confirmed" && !c.flight)
+    .filter((c) => c.status === "confirmed" && !c.flight && !c.stay)
     .map((c) => ({
       type: COMPONENT_TYPE_HE[c.type as ComponentType] ?? c.type,
       description: c.description ?? COMPONENT_TYPE_HE[c.type as ComponentType] ?? c.type,
@@ -226,6 +279,45 @@ export async function getPublicTrip(token: string, now = new Date()): Promise<Pu
       detail: c.description,
     }));
 
+  /* ------------------------------ המלון ------------------------------ */
+
+  const stayComponent = trip.components.find((c) => c.stay && c.status !== "cancelled");
+  const nights = nightsBetween(trip.departureAt, trip.returnAt);
+
+  const stay: PublicStay | null = stayComponent?.stay
+    ? (() => {
+        const st = stayComponent.stay!;
+        return {
+          name: st.name,
+          stars: starsLabel(st.stars),
+          rating: ratingLabel(st.rating, st.ratingCount),
+          address: st.address,
+          roomType: st.roomType,
+          board: isBoardBasis(st.boardBasis) ? BOARD_BASIS_HE[st.boardBasis] : null,
+          checkInLabel: formatAbsoluteHe(trip.departureAt, { withWeekday: true, withTime: false }),
+          checkOutLabel: formatAbsoluteHe(trip.returnAt, { withWeekday: true, withTime: false }),
+          checkInTime: st.checkInTime,
+          checkOutTime: st.checkOutTime,
+          nights,
+          // safeExternalUrl שוב, ולא רק בשמירה: שורה במסד שנכתבה לפני
+          // הוולידציה לא אמורה להגיע ללקוח.
+          officialUrl: safeExternalUrl(st.officialUrl),
+          voucherUrl: safeExternalUrl(st.voucherUrl),
+          mapUrl: mapUrl({
+            name: st.name,
+            address: st.address,
+            placeId: st.placeId,
+            lat: st.lat,
+            lng: st.lng,
+            destination: trip.destination,
+          }),
+          photos: [],
+        };
+      })()
+    : null;
+
+  const coverUrl = safeExternalUrl(trip.coverImageUrl);
+
   return {
     code: trip.code,
     clientName: trip.client.name,
@@ -239,6 +331,9 @@ export async function getPublicTrip(token: string, now = new Date()): Promise<Pu
     departureLabel: formatAbsoluteHe(trip.departureAt, { withWeekday: true, withTime: false }),
     returnLabel: formatAbsoluteHe(trip.returnAt, { withWeekday: true, withTime: false }),
     travelerCount: trip.travelers.length,
+    nights,
+    cover: coverUrl ? { url: coverUrl, credit: trip.coverCredit } : null,
+    stay,
     booked,
     flights,
     todos,
