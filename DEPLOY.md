@@ -1,0 +1,109 @@
+# העלאה לאוויר
+
+עשר דקות, בלי לדעת שום דבר על קוד. בחרו מסלול אחד.
+
+---
+
+## מסלול Vercel (מומלץ)
+
+### 1. מסד נתונים — Neon
+
+1. היכנסו ל-[neon.tech](https://neon.tech) והירשמו עם חשבון Google.
+2. **Create project** → שם: `flyapp`, אזור: **Europe (Frankfurt)**.
+3. במסך שנפתח, תחת **Connection string**, העתיקו שתי כתובות:
+   - הכתובת עם `-pooler` בתוכה → זו `DATABASE_URL`
+   - הכתובת **בלי** `-pooler` → זו `DIRECT_DATABASE_URL`
+
+   אם מוצגת רק אחת, לחצו על התפריט ליד ה-connection string ובחרו
+   **Pooled connection** / **Direct connection** כדי לראות את שתיהן.
+
+### 2. פריסה — Vercel
+
+1. היכנסו ל-[vercel.com](https://vercel.com) עם חשבון GitHub.
+2. **Add New → Project** → בחרו את `fly-app`.
+3. תחת **Environment Variables**, הדביקו את הרשימה מסעיף 3 למטה.
+4. **Deploy**. הבנייה מריצה את המיגרציות לבד ויוצרת את הטבלאות.
+
+### 3. משתני הסביבה
+
+| משתנה | מה לשים |
+| --- | --- |
+| `DATABASE_URL` | כתובת ה-pooler מ-Neon |
+| `DIRECT_DATABASE_URL` | הכתובת הישירה מ-Neon |
+| `APP_PASSCODE` | הסיסמה המשותפת שלכם. **12 תווים לפחות** |
+| `SESSION_SECRET` | המפתח שנשלח לכם בנפרד |
+| `PASSPORT_ENCRYPTION_KEY` | המפתח שנשלח לכם בנפרד |
+| `DAILY_JOB_TOKEN` | הטוקן שנשלח לכם בנפרד |
+| `CRON_SECRET` | **אותו ערך** כמו `DAILY_JOB_TOKEN` |
+| `PUBLIC_BASE_URL` | הכתובת שוורסל נותנת, בלי לוכסן בסוף |
+| `AGENT_NAME` | השם שחותם על ההודעות ללקוחות |
+| `AGENCY_NAME` | שם העסק שלכם |
+| `AGENT_EMERGENCY_PHONE` | מספר החירום שנשלח ללקוח לפני היציאה |
+| `HOST_AGENCY_FEE_RATE` | `0.01` |
+| `HOST_AGENCY_NAME` | `Travel Or` |
+
+את `PUBLIC_BASE_URL` תדעו רק אחרי הפריסה הראשונה. שימו ערך זמני, פרסו,
+ואז תקנו אותו ופרסו שוב (**Deployments → … → Redeploy**).
+
+### 4. ה-cron
+
+כבר מוגדר ב-`vercel.json` ורץ כל יום ב-06:30 שעון ישראל. אין מה לעשות.
+
+> במסלול Hobby מותר cron אחד ביום. זה מספיק — המסכים מחשבים את מה שהם
+> מציגים לפי התאריכים עצמם, וה-job רק מסדר מצבים ומקדם סטטוסים.
+
+---
+
+## מסלול Fly.io
+
+```bash
+fly launch --no-deploy
+fly postgres create              # ואז: fly postgres attach <שם>
+fly secrets set \
+  APP_PASSCODE=... SESSION_SECRET=... PASSPORT_ENCRYPTION_KEY=... \
+  DAILY_JOB_TOKEN=... PUBLIC_BASE_URL=https://<האפליקציה>.fly.dev \
+  AGENT_NAME=... AGENCY_NAME=... AGENT_EMERGENCY_PHONE=... \
+  HOST_AGENCY_FEE_RATE=0.01 HOST_AGENCY_NAME="Travel Or"
+fly deploy
+```
+
+`fly.toml` כבר מריץ את המיגרציות לפני שהגרסה מקבלת תעבורה, ובודק חיים מול
+`/api/health`. מה ש-Fly לא נותן לבד הוא cron — הגדירו מתזמן חיצוני שקורא:
+
+```bash
+curl -X POST https://<האפליקציה>.fly.dev/api/jobs/daily \
+     -H "Authorization: Bearer $DAILY_JOB_TOKEN"
+```
+
+---
+
+## אחרי הפריסה — לפני שמזינים תיק אמיתי
+
+הריצו את בדיקת המוכנות:
+
+```bash
+npm run preflight https://<הכתובת שלכם> <DAILY_JOB_TOKEN>
+```
+
+היא בודקת שהמסד עונה, **שהמערכת באמת נעולה**, שה-job מוגן ורץ, ושקישור
+לקוח לא קיים מחזיר 404. אם משהו נכשל — אל תזינו תיקים אמיתיים עד שזה נקי.
+
+ואז, ידנית:
+
+1. היכנסו עם הסיסמה. אתם אמורים להגיע למסך "היום" ריק.
+2. פתחו תיק אמיתי אחד. **שימו לב לתאריך התשלום** — אם התיק שולם לפני
+   שבועיים, שנו אותו, אחרת אבני הדרך הראשונות יקבלו מועד בעתיד.
+3. הוסיפו את הנוסעים עם תוקף הדרכון.
+4. פתחו את עמוד הלקוח מהתיק ותראו מה הוא רואה.
+5. **שלחו הודעה אחת לעצמכם בוואטסאפ** לפני שאתם שולחים ללקוח — לוודא
+   שהעברית והפיסוק יוצאים נכון על מכשיר אמיתי.
+
+---
+
+## שני דברים לפני שנכנסים לעונה
+
+**גיבוי.** ב-Neon יש point-in-time מובנה בשכבה החינמית; ב-Fly צריך להגדיר
+`fly postgres backup` בעצמכם. **תבדקו שזה עובד**, אל תגלו בדיעבד.
+
+**`PASSPORT_ENCRYPTION_KEY` לא ניתן לשחזור.** אם הוא הולך לאיבוד, מספרי
+הדרכון הקיימים הופכים לבלתי קריאים לתמיד. שמרו עותק מחוץ למערכת.

@@ -16,13 +16,15 @@ import {
 import { buildDesiredMilestones, passportValidUntilRequirement } from "@/lib/milestones/engine";
 import { loadTripSnapshot, parseBlockers } from "@/lib/milestones/sync";
 import { hostAgencyName } from "@/lib/trips/finance";
-import { airportLabel } from "@/lib/time/airports";
+import { airportLabel, allAirports } from "@/lib/time/airports";
+import { knownAirlines } from "@/lib/airlines/checkin";
 import { DISPLAY_TZ, formatAbsoluteHe, formatRelativeHe, utcToZoned } from "@/lib/time/zones";
 import { publicTripUrl } from "@/lib/trips/publicToken";
 import { whatsAppLink } from "@/lib/messages/whatsapp";
 import { ClientLinkPanel } from "./ClientLinkPanel";
 import { ComponentsPanel } from "./ComponentsPanel";
 import { TravelersPanel } from "./TravelersPanel";
+import { TripSettingsPanel } from "./TripSettingsPanel";
 import { DepartureEditor } from "./DepartureEditor";
 import { MoneyPanel } from "./MoneyPanel";
 
@@ -142,6 +144,18 @@ export default async function TripPage({
       <div id="components">
         <ComponentsPanel
           tripId={trip.id}
+          airports={allAirports().map((a) => ({ iata: a.iata, label: `${a.he} (${a.iata})` }))}
+          airlines={knownAirlines()
+            .map((a) => ({ code: a.code, label: `${a.name ?? a.code} (${a.code})` }))
+            .sort((a, b) => a.label.localeCompare(b.label, "he"))}
+          tripDates={{
+            departureDate: trip.departureLocal.slice(0, 10),
+            departureTime: trip.departureLocal.slice(11, 16),
+            returnDate: trip.returnLocal.slice(0, 10),
+            returnTime: trip.returnLocal.slice(11, 16),
+            departureAirport: trip.departureAirport,
+            returnAirport: trip.returnAirport,
+          }}
           components={trip.components.map((c) => ({
             id: c.id,
             type: COMPONENT_TYPE_HE[c.type as ComponentType] ?? c.type,
@@ -156,6 +170,21 @@ export default async function TripPage({
             freeCancelInput: c.freeCancelUntil ? utcToZoned(c.freeCancelUntil, DISPLAY_TZ).slice(0, 10) : null,
             supplierPaymentInput: c.supplierPaymentDue ? utcToZoned(c.supplierPaymentDue, DISPLAY_TZ).slice(0, 10) : null,
             isFlight: !!c.flight,
+            flightDefaults: c.type === "flight"
+              ? {
+                  componentId: c.id,
+                  direction: (c.flight?.direction as "outbound" | "inbound") ?? "outbound",
+                  airlineCode: c.flight?.airlineCode ?? "",
+                  flightNumber: c.flight?.flightNumber ?? "",
+                  departsAirport: c.flight?.departsAirport ?? trip.departureAirport,
+                  departsDate: c.flight?.departsAtLocal?.slice(0, 10) ?? trip.departureLocal.slice(0, 10),
+                  departsTime: c.flight?.departsAtLocal?.slice(11, 16) ?? trip.departureLocal.slice(11, 16),
+                  arrivesAirport: c.flight?.arrivesAirport ?? trip.returnAirport,
+                  arrivesDate: c.flight?.arrivesAtLocal?.slice(0, 10) ?? "",
+                  arrivesTime: c.flight?.arrivesAtLocal?.slice(11, 16) ?? "",
+                  baggageAllowance: c.flight?.baggageAllowance ?? "",
+                }
+              : null,
             checkinDone: c.flight?.checkinDone ?? false,
             checkinOpensAt: c.flight?.checkinOpensAt
               ? formatAbsoluteHe(c.flight.checkinOpensAt, { withTime: true })
@@ -214,6 +243,18 @@ export default async function TripPage({
           />
         );
       })()}
+
+      <TripSettingsPanel
+        tripId={trip.id}
+        clientName={trip.client.name}
+        clientPhone={trip.client.phone}
+        clientEmail={trip.client.email}
+        destination={trip.destination}
+        source={trip.source}
+        notes={trip.notes}
+        status={trip.status}
+        travelerCount={trip.travelers.length}
+      />
 
       {/* ------------------------------ שינוי העוגן ------------------------------ */}
       <DepartureEditor

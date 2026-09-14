@@ -37,13 +37,16 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 פקודות נוספות:
 
 ```bash
-npm test          # 186 בדיקות יחידה
+npm test          # 192 בדיקות יחידה
 npm run typecheck
 npm run db:studio # דפדפן למסד הנתונים
 npm run job:daily # ה-job היומי מהטרמינל
 
 # נתוני עומס — 120 תיקים פרוסים על עונה שלמה
 npm run db:seed:bulk -- 120
+
+# בדיקת מוכנות מול פריסה חיה
+npm run preflight https://your-app.vercel.app <DAILY_JOB_TOKEN>
 ```
 
 ## מה נבנה
@@ -65,7 +68,7 @@ npm run db:seed:bulk -- 120
 
 ## העלאה לאוויר
 
-שתי דרכים. **בחרו אחת ומחקו את הקבצים של השנייה** — אין טעם להחזיק את שתיהן.
+**המדריך המלא צעד-אחר-צעד נמצא ב-[DEPLOY.md](./DEPLOY.md).** בקצרה, שתי דרכים. **בחרו אחת ומחקו את הקבצים של השנייה** — אין טעם להחזיק את שתיהן.
 
 ### א׳ — Vercel (מומלץ)
 

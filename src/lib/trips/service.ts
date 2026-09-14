@@ -8,6 +8,7 @@ import { checkinWindow } from "../airlines/checkin";
 import { encryptPassport, passportLast4 } from "../crypto/passport";
 import { newPublicToken } from "./publicToken";
 import { configuredHostFeeRate } from "./finance";
+import { normalizePhone } from "../messages/phone";
 import { airportTz } from "../time/airports";
 import { DISPLAY_TZ, utcToZoned, zonedToUtc } from "../time/zones";
 import { refreshTripStates, syncTrip } from "../milestones/sync";
@@ -340,5 +341,37 @@ export async function settleSupplierCost(tripId: string, actualSupplierCost: num
     throw new Error("עלות ספקים לא תקינה");
   }
   await prisma.trip.update({ where: { id: tripId }, data: { actualSupplierCost } });
+  await refreshTripStates(tripId);
+}
+
+/** עדכון פרטי הקשר של הלקוח. טלפון שגוי פירושו שכל ההודעות הולכות לאיבוד. */
+export async function updateClient(
+  tripId: string,
+  values: { name: string; phone: string; email?: string | null },
+): Promise<void> {
+  const name = values.name.trim();
+  const phone = values.phone.trim();
+  if (name.length < 2) throw new Error("צריך שם לקוח");
+  if (normalizePhone(phone).ok === false) throw new Error(`הטלפון "${phone}" לא נראה תקין`);
+
+  const trip = await prisma.trip.findUniqueOrThrow({ where: { id: tripId }, select: { clientId: true } });
+  await prisma.client.update({
+    where: { id: trip.clientId },
+    data: { name, phone, email: values.email?.trim() || null },
+  });
+}
+
+/** עדכון פרטי התיק עצמו. */
+export async function updateTripDetails(
+  tripId: string,
+  values: { destination: string; source?: string | null; notes?: string | null },
+): Promise<void> {
+  const destination = values.destination.trim();
+  if (destination.length < 2) throw new Error("צריך יעד");
+  await prisma.trip.update({
+    where: { id: tripId },
+    data: { destination, source: values.source?.trim() || null, notes: values.notes?.trim() || null },
+  });
+  // היעד משפיע על דרישת תוקף הדרכון רק אם היא תלוית יעד; הסנכרון זול ובטוח.
   await refreshTripStates(tripId);
 }

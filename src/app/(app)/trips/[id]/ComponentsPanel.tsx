@@ -5,11 +5,13 @@ import { markCheckinDoneAction, setComponentStatusAction } from "@/app/actions";
 import { COMPONENT_STATUSES, COMPONENT_STATUS_HE, COMPONENT_TYPES, COMPONENT_TYPE_HE, type ComponentStatus, type ComponentType } from "@/lib/domain/types";
 import {
   addComponentAction,
+  addFlightComponentAction,
   deleteComponentAction,
   editComponentAction,
   type AddComponentState,
   type EditComponentState,
 } from "./actions";
+import { FlightForm, type FlightDefaults } from "./FlightForm";
 
 export type ComponentRow = {
   id: string;
@@ -26,12 +28,21 @@ export type ComponentRow = {
   freeCancelInput: string | null;
   supplierPaymentInput: string | null;
   isFlight: boolean;
+  flightDefaults: FlightDefaults | null;
   checkinDone: boolean;
   checkinOpensAt: string | null;
   checkinClosesAt: string | null;
 };
 
-export function ComponentsPanel({ tripId, components }: { tripId: string; components: ComponentRow[] }) {
+export function ComponentsPanel({
+  tripId, components, airports, airlines, tripDates,
+}: {
+  tripId: string;
+  components: ComponentRow[];
+  airports: Array<{ iata: string; label: string }>;
+  airlines: Array<{ code: string; label: string }>;
+  tripDates: { departureDate: string; departureTime: string; returnDate: string; returnTime: string; departureAirport: string; returnAirport: string };
+}) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
@@ -131,7 +142,16 @@ export function ComponentsPanel({ tripId, components }: { tripId: string; compon
                 {editingId === c.id && (
                   <tr>
                     <td colSpan={5} style={{ background: "#fbfcfd" }}>
-                      <EditComponentForm component={c} onDone={() => setEditingId(null)} />
+                      {c.rawType === "flight" && c.flightDefaults ? (
+                        <FlightForm
+                          defaults={c.flightDefaults}
+                          airports={airports}
+                          airlines={airlines}
+                          onDone={() => setEditingId(null)}
+                        />
+                      ) : (
+                        <EditComponentForm component={c} onDone={() => setEditingId(null)} />
+                      )}
                     </td>
                   </tr>
                 )}
@@ -143,7 +163,29 @@ export function ComponentsPanel({ tripId, components }: { tripId: string; compon
       )}
 
       {!adding ? (
-        <button style={{ marginTop: "0.7rem" }} onClick={() => setAdding(true)}>הוספת רכיב</button>
+        <div className="actions" style={{ marginTop: "0.7rem" }}>
+          <button onClick={() => setAdding(true)}>הוספת רכיב</button>
+          {(["outbound", "inbound"] as const).map((direction) => {
+            const exists = components.some((c) => c.flightDefaults?.direction === direction);
+            if (exists) return null;
+            return (
+              <button
+                key={direction}
+                disabled={pending}
+                onClick={() => {
+                  setError(null);
+                  startTransition(async () => {
+                    const res = await addFlightComponentAction(tripId, direction);
+                    if (res.error) setError(res.error);
+                    else if (res.componentId) setEditingId(res.componentId);
+                  });
+                }}
+              >
+                הוספת טיסת {direction === "outbound" ? "הלוך" : "חזור"}
+              </button>
+            );
+          })}
+        </div>
       ) : (
         <form action={addAction} style={{ marginTop: "0.8rem", borderTop: "1px solid var(--border)", paddingTop: "0.8rem" }}>
           <input type="hidden" name="tripId" value={tripId} />
