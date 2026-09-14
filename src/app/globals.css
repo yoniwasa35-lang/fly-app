@@ -98,26 +98,38 @@
   --wa-hover: #0b5c53;
   --on-wa: #ffffff;
 
-  /* --- מרווחים. סולם של 4, צפוף כמו שמתאים ללוח עבודה --- */
-  --sp-1: 0.25rem;
-  --sp-2: 0.375rem;
-  --sp-3: 0.5rem;
-  --sp-4: 0.75rem;
-  --sp-5: 1rem;
-  --sp-6: 1.25rem;
-  --sp-7: 1.75rem;
-  --sp-8: 2.5rem;
+  /*
+   * --- מרווחים ---
+   *
+   * רשת של 4, עם 8 · 16 · 24 · 32 כתחנות הראשיות. הן אלה שנושאות את רוב
+   * המסך: רווח בין כרטיסים, ריפוד פנימי, ומרווח בין אזורים. הערכים
+   * שביניהן קיימים לפרטים קטנים בלבד ולא כדי לייצר סולם משלהם.
+   */
+  --sp-1: 0.25rem;   /*  4 */
+  --sp-2: 0.5rem;    /*  8 */
+  --sp-3: 0.75rem;   /* 12 */
+  --sp-4: 1rem;      /* 16 */
+  --sp-5: 1.5rem;    /* 24 */
+  --sp-6: 2rem;      /* 32 */
+  --sp-7: 3rem;      /* 48 */
+  --sp-8: 4rem;      /* 64 */
 
-  /* --- טיפוגרפיה. 12px הוא הרצפה המוחלטת, גם בציר ובתגיות --- */
-  --fs-2xs: 0.75rem;
-  --fs-xs: 0.8125rem;
-  --fs-sm: 0.875rem;
-  --fs-base: 0.9375rem;
-  --fs-md: 1rem;
-  --fs-lg: 1.125rem;
-  --fs-xl: 1.375rem;
-  --fs-2xl: 1.75rem;
-  --fs-3xl: 2.125rem;
+  /*
+   * --- טיפוגרפיה ---
+   *
+   * חמש דרגות שנושאות את המשמעות, ו-12px כרצפה מוחלטת — גם בציר, גם
+   * בתגיות. המשקלים נשארים מעטים: 550 לכותרות משנה, 650 לכותרות עמוד,
+   * והשאר רגיל. טקסט מודגש שמופיע בכל מקום מפסיק להדגיש משהו.
+   */
+  --fs-2xs: 0.75rem;     /* 12 — כיתוב */
+  --fs-xs: 0.8125rem;    /* 13 — כיתוב */
+  --fs-sm: 0.875rem;     /* 14 — משני */
+  --fs-base: 0.9375rem;  /* 15 — משני */
+  --fs-md: 1rem;         /* 16 — תוכן ראשי */
+  --fs-lg: 1.0625rem;    /* 17 — תוכן ראשי */
+  --fs-xl: 1.3125rem;    /* 21 — כותרת אזור */
+  --fs-2xl: 1.75rem;     /* 28 — כותרת עמוד */
+  --fs-3xl: 2.125rem;    /* 34 — כותרת עמוד גדולה, בעמוד הלקוח */
 
   /* --- צורה --- */
   --r-sm: 8px;
@@ -264,7 +276,7 @@
 html {
   -webkit-text-size-adjust: 100%;
   /* הכותרת דביקה. בלי זה מיקוד מקלדת נוחת מתחתיה — WCAG 2.2. */
-  scroll-padding-top: 5rem;
+  scroll-padding-top: var(--sp-5);
   scroll-padding-bottom: 5rem;
 }
 
@@ -354,33 +366,42 @@ h2 { font-size: var(--fs-md); }
 
 /* ------------------------------ כותרת -------------------------------- */
 
+/*
+ * כותרת עמוד גדולה, ולא סרגל דביק.
+ *
+ * כותרת בת 28 פיקסלים עונה מיד על "איפה אני", וזה העיקרון החשוב יותר
+ * מבין השניים. סרגל דביק היה גוזל את אותם פיקסלים מכל גלילה — וכבר אין
+ * בו צורך: הניווט יושב למטה והיצירה בכפתור המרחף.
+ *
+ * אין קו מפריד. המרווח מפריד.
+ */
 .topbar {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  background: color-mix(in srgb, var(--surface) 88%, transparent);
-  backdrop-filter: saturate(1.6) blur(12px);
-  -webkit-backdrop-filter: saturate(1.6) blur(12px);
-  border-bottom: 1px solid var(--border);
-  padding: var(--sp-3) var(--sp-5);
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--sp-4);
+  gap: var(--sp-3) var(--sp-4);
+  padding: var(--sp-5) var(--sp-5) var(--sp-4);
+  background: transparent;
 }
 
-/* דפדפן בלי color-mix יקבל משטח אטום — מכוער פחות מכותרת שקופה */
-@supports not (background: color-mix(in srgb, red 50%, transparent)) {
-  .topbar { background: var(--surface); }
+.topbar h1 {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-2xl);
+  font-weight: 650;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+  text-wrap: balance;
 }
-
-.topbar h1 { flex: 1; min-width: 0; }
 
 .topbar .sub {
-  font-size: var(--fs-2xs);
-  color: var(--text-faint);
-  font-weight: 450;
   display: block;
+  margin-top: var(--sp-2);
+  font-size: var(--fs-sm);
+  color: var(--text-soft);
+  font-weight: 400;
   letter-spacing: 0;
+  line-height: 1.45;
 }
 
 /* ------------------------------- ניווט -------------------------------
@@ -469,7 +490,7 @@ h2 { font-size: var(--fs-md); }
   .nav a, .nav button {
     flex: none;
     flex-direction: row;
-    min-height: 38px;
+    min-height: var(--tap);
     padding: var(--sp-2) var(--sp-4);
     border-radius: var(--r-full);
     font-size: var(--fs-sm);
@@ -609,7 +630,9 @@ h2 { font-size: var(--fs-md); }
   color: var(--text-soft);
   display: flex;
   flex-wrap: wrap;
-  gap: var(--sp-1) var(--sp-3);
+  /* התגיות צמודות יותר מהמרווח הכללי: שורת התור היא המקום היחיד במסך
+     שבו צפיפות עוזרת — היא מה שמאפשר לראות כמה פריטים במבט. */
+  gap: var(--sp-1) var(--sp-2);
   align-items: center;
 }
 
@@ -662,8 +685,9 @@ h2 { font-size: var(--fs-md); }
   margin-top: var(--sp-3);
 }
 
-.row .actions button { min-height: 34px; padding: var(--sp-1) var(--sp-3); font-size: var(--fs-xs); }
-.row .actions .more { padding-inline: var(--sp-2); }
+.row .actions button { min-height: var(--tap); padding: var(--sp-2) var(--sp-4); font-size: var(--fs-xs); }
+/* "עוד" היה ברוחב 27 פיקסלים — יעד שאי אפשר לפגוע בו באגודל. */
+.row .actions .more { min-width: var(--tap); padding-inline: var(--sp-2); }
 
 /* =============================== תגיות =============================== */
 
@@ -703,11 +727,15 @@ h2 { font-size: var(--fs-md); }
 
 /* ============================== כפתורים ============================== */
 
+/*
+ * 44 פיקסלים הוא הרצפה לכל דבר לחיץ, ולא רק ליעד הראשי. אצבע אינה
+ * עכבר, והמסך הזה נפתח בעמידה, בדרך, ביד אחת.
+ */
 button, .btn {
   font-family: inherit;
   font-size: var(--fs-sm);
   font-weight: 550;
-  min-height: 38px;
+  min-height: var(--tap);
   padding: var(--sp-2) var(--sp-5);
   border-radius: var(--r-sm);
   border: 1px solid var(--border-strong);
@@ -747,7 +775,7 @@ button:disabled:hover { background: var(--surface); }
 }
 .btn-quiet:hover { background: var(--surface-2); color: var(--text); }
 
-.btn-lg { min-height: var(--tap); font-size: var(--fs-md); padding: var(--sp-3) var(--sp-6); }
+.btn-lg { min-height: 52px; font-size: var(--fs-md); padding: var(--sp-3) var(--sp-6); }
 
 /* =============================== ריק ================================= */
 
@@ -1103,7 +1131,7 @@ tr:last-child td { border-bottom: none; }
 
 .chips button {
   white-space: nowrap;
-  min-height: 34px;
+  min-height: var(--tap);
   font-size: var(--fs-xs);
   padding: var(--sp-1) var(--sp-4);
   border-radius: var(--r-full);
@@ -1121,7 +1149,7 @@ tr:last-child td { border-bottom: none; }
 }
 
 .zoom-bar button {
-  min-height: 30px;
+  min-height: var(--tap);
   font-size: var(--fs-2xs);
   padding: var(--sp-1) var(--sp-3);
   border-radius: var(--r-full);
@@ -1147,7 +1175,7 @@ tr:last-child td { border-bottom: none; }
 
 .tl-name {
   display: block;
-  height: 40px;
+  height: var(--tap);
   padding: var(--sp-1) var(--sp-3);
   border-bottom: 1px solid var(--border);
   text-decoration: none;
@@ -1220,7 +1248,7 @@ tr:last-child td { border-bottom: none; }
 
 .tl-track {
   position: relative;
-  height: 40px;
+  height: 44px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -1750,24 +1778,6 @@ details.collapse.form-more > summary .hint {
 .brand-mark { color: var(--gold-500); flex: none; }
 
 /* קו זהב דק. המקום היחיד שבו זהב מופיע בלוח העבודה עצמו. */
-.topbar { border-bottom-color: var(--border); box-shadow: inset 0 -1px 0 0 transparent; }
-
-.topbar::after {
-  content: "";
-  position: absolute;
-  inset-inline: 0;
-  bottom: -1px;
-  height: 1px;
-  background: linear-gradient(
-    to left,
-    transparent 0%,
-    var(--gold-line) 22%,
-    var(--gold-line) 78%,
-    transparent 100%
-  );
-  opacity: 0.85;
-}
-
 .brand-lockup {
   display: flex;
   align-items: center;
@@ -1923,7 +1933,7 @@ details.collapse.form-more > summary .hint {
     flex: none;
     flex-direction: row;
     align-items: center;
-    min-height: 38px;
+    min-height: var(--tap);
     padding: 0 var(--sp-3) 0 var(--sp-4);
     margin-inline-end: var(--sp-2);
     border-inline-end: 1px solid var(--border);
@@ -1942,11 +1952,6 @@ details.collapse.form-more > summary .hint {
 }
 
 /* הלוגו בכותרת מסך הבית — תחליף לסרגל הרחב, שמוסתר בטלפון */
-.topbar-brand { width: 50px; height: 23px; flex: none; color: var(--gold-500); }
-
-@media (min-width: 720px) {
-  .topbar-brand { display: none; }
-}
 
 .future-hint { display: inline-flex; align-items: center; gap: var(--sp-1); }
 .future-hint svg { width: 14px; height: 14px; }
@@ -2112,7 +2117,7 @@ details.collapse.form-more > summary .hint {
 /* ביטול כפתור ה-X של ספארי, שמופיע בגודל אחר מכל השאר */
 .searchbar input::-webkit-search-cancel-button { -webkit-appearance: none; }
 
-.searchbar .btn-quiet { flex: none; min-height: 32px; padding-inline: var(--sp-3); font-size: var(--fs-2xs); }
+.searchbar .btn-quiet { flex: none; min-height: var(--tap); padding-inline: var(--sp-4); font-size: var(--fs-2xs); }
 
 .tabs {
   display: flex;
@@ -2130,7 +2135,7 @@ details.collapse.form-more > summary .hint {
   align-items: center;
   justify-content: center;
   gap: var(--sp-2);
-  min-height: 38px;
+  min-height: var(--tap);
   padding: var(--sp-2) var(--sp-4);
   border-radius: var(--r-full);
   text-decoration: none;
@@ -2259,7 +2264,15 @@ details.collapse.form-more > summary .hint {
 }
 
 .person-main { flex: 1; min-width: 0; display: grid; gap: 1px; }
-.person-main strong { font-size: var(--fs-base); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.person-main strong {
+  font-size: var(--fs-base);
+  /* שם הוא הדבר שמזהים לפיו. עדיף שתי שורות מאשר "אבי ושרית …". */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.3;
+}
 .person-phone { font-size: var(--fs-2xs); color: var(--text-soft); }
 
 .person-side {
@@ -2268,7 +2281,7 @@ details.collapse.form-more > summary .hint {
   gap: 2px;
   text-align: end;
   flex: none;
-  max-width: 45%;
+  max-width: 40%;
 }
 
 .person-dest { font-size: var(--fs-sm); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
@@ -2392,9 +2405,14 @@ details.collapse.template-item > summary::before { grid-row: 1 / span 2; }
 .template-item .card { margin: 0 var(--sp-3) var(--sp-3); box-shadow: none; }
 
 /* הכפתורים של הפרטים המשתנים — טקסט בעברית, לא קוד */
+/*
+ * שבבי הפרטים המשתנים הם עזר משני ולא פעולה מרכזית, ולכן 36 ולא 44:
+ * עשרים וחמישה יעדים בגובה 44 היו הופכים את העורך לקיר. 36 עם רווח
+ * של 8 עובר את הדרישה (24 פיקסלים עם מרווח) בנוחות.
+ */
 .var-list button {
   font-size: var(--fs-2xs);
-  min-height: 30px;
+  min-height: 36px;
   padding: var(--sp-1) var(--sp-3);
   border-radius: var(--r-full);
   border-color: var(--border);
@@ -2492,7 +2510,7 @@ details.collapse.template-item > summary::before { grid-row: 1 / span 2; }
   background: var(--surface);
   border-radius: var(--r-full);
   text-decoration: none;
-  min-height: 36px;
+  min-height: var(--tap);
   padding: var(--sp-2) var(--sp-4);
   font-size: var(--fs-xs);
 }
@@ -3020,6 +3038,100 @@ details.collapse.trip-alerts > summary { color: var(--overdue); }
 }
 
 /* עריכה בתוך קטע הטיסה — כפתור שקט בקצה השורה, לא כפתור ראשי */
-.leg-edit { margin-inline-start: auto; min-height: 32px; font-size: var(--fs-2xs); padding-inline: var(--sp-3); }
+.leg-edit { margin-inline-start: auto; min-height: var(--tap); font-size: var(--fs-2xs); padding-inline: var(--sp-4); }
 .leg-head { flex-wrap: wrap; }
 .leg-line { margin: 0; font-size: var(--fs-lg); font-weight: 600; letter-spacing: -0.01em; }
+
+/* =============================== שלדי טעינה ==========================
+ * צורה של מה שעומד להגיע, כדי שהמעבר יהיה החלפה ולא קפיצה.
+ */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.sk {
+  display: block;
+  border-radius: var(--r-sm);
+  background: linear-gradient(
+    100deg,
+    var(--surface-2) 30%,
+    var(--surface-3) 50%,
+    var(--surface-2) 70%
+  );
+  background-size: 300% 100%;
+  animation: sk-shimmer 1.6s linear infinite;
+}
+
+.sk + .sk { margin-top: var(--sp-2); }
+
+@keyframes sk-shimmer {
+  from { background-position: 0% 0; }
+  to { background-position: -300% 0; }
+}
+
+/* ההבהוב נעצר כשהמשתמש ביקש פחות תנועה. השלד נשאר. */
+@media (prefers-reduced-motion: reduce) {
+  .sk { animation: none; background: var(--surface-2); }
+}
+
+.sk-row {
+  padding: var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+
+.sk-tile { background: var(--surface-2); border-color: transparent; }
+
+.empty-action { margin-top: var(--sp-5); display: flex; justify-content: center; }
+
+/* ========================== מיקרו-אינטראקציות ========================
+ * קטנות ומהירות. תנועה שמסבירה מה קרה, לא תנועה שמושכת תשומת לב.
+ */
+
+/* משוב ללחיצה: שקיעה קלה, לא קפיצה */
+button:active:not(:disabled), .btn:active { transform: scale(0.97); }
+.tile:active, .person:active, .trip-card:active, .menu-row:active { transform: scale(0.99); }
+
+button, .btn, .tile, .person, .trip-card, .menu-row {
+  transition: transform 90ms var(--ease), background var(--fast) var(--ease),
+    border-color var(--fast) var(--ease), color var(--fast) var(--ease),
+    box-shadow var(--fast) var(--ease);
+}
+
+/*
+ * הבזק אישור אחרי שמשימה סומנה. השורה נעלמת מיד אחרי — בלי ההבזק העין
+ * לא מספיקה לקשר בין הלחיצה לתוצאה, וזה מה שגורם ללחיצה כפולה.
+ */
+.actions.is-done { animation: confirm 420ms var(--ease); }
+
+@keyframes confirm {
+  0% { opacity: 1; }
+  30% { opacity: 0.35; transform: scale(0.97); }
+  100% { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button:active:not(:disabled), .btn:active,
+  .tile:active, .person:active, .trip-card:active, .menu-row:active { transform: none; }
+  .actions.is-done { animation: none; }
+}
+
+/*
+ * קישורי טקסט בתוך שורה צפופה. הם חלק ממשפט ולכן אי אפשר להגדיל אותם
+ * בלי לפרק את השורה — אבל אפשר להגדיל את אזור הפגיעה: ריפוד אנכי עם
+ * שוליים שליליים מרחיב את השטח הלחיץ בלי לשנות פיקסל אחד בפריסה.
+ */
+.row .meta a, .blocked-note a, .late-row .meta a {
+  padding-block: 0.55rem;
+  margin-block: -0.55rem;
+}

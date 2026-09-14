@@ -3,7 +3,7 @@ import { QueueRow } from "@/components/QueueRow";
 import { listTasks, TASK_TABS, TASK_TAB_HE, type TaskTab } from "@/lib/queue/tasks";
 import { formatAbsoluteHe } from "@/lib/time/zones";
 import { Icon } from "@/components/Icon";
-import { BrandMark } from "@/components/Brand";
+import { EmptyState } from "@/components/EmptyState";
 
 export const dynamic = "force-dynamic";
 
@@ -34,25 +34,29 @@ export default async function TasksPage({
   };
 
   const empty = {
-    today: ["אין משימות להיום.", "כל מה שנדרש עד סוף היום טופל."],
-    upcoming: ["אין משימות בהמשך.", "כשייפתחו תיקים חדשים, אבני הדרך שלהם יופיעו כאן."],
-    done: ["עוד לא הושלמה משימה.", "כל משימה שתסמנו כבוצעה תישמר כאן."],
+    today: {
+      title: "היום נקי",
+      body: "כל מה שנדרש עד סוף היום טופל. מה שבהמשך מחכה בלשונית שלידה.",
+    },
+    upcoming: {
+      title: "אין עדיין משימות בהמשך",
+      body: "כל נסיעה שתיפתח תייצר לבד את לוח המשימות שלה — ביטוח, מסמכים, צ׳ק-אין וגבייה.",
+    },
+    done: {
+      title: "כאן תישמר ההיסטוריה",
+      body: "כל משימה שתסמנו כבוצעה תעבור לכאן, כדי שאפשר יהיה לענות על ״מתי בעצם שלחנו״.",
+    },
   }[tab];
 
   return (
     <>
       <header className="topbar">
-        <BrandMark className="topbar-brand" />
         <h1>
           משימות
           <span className="sub">
             {list.counts.today} להיום · {list.counts.upcoming} בהמשך
           </span>
         </h1>
-        <Link className="btn btn-primary" href="/tasks/new">
-          <Icon name="plus" />
-          <span>משימה</span>
-        </Link>
       </header>
 
       <div className="tabs" role="tablist" aria-label="סינון משימות">
@@ -88,11 +92,20 @@ export default async function TasksPage({
       </form>
 
       {list.items.length === 0 ? (
-        <div className="empty">
-          <Icon name="tasks" />
-          <strong>{q ? "אין תוצאות לחיפוש." : empty[0]}</strong>
-          {q ? "נסו מילה אחרת, שם לקוח או יעד." : empty[1]}
-        </div>
+        q ? (
+          <EmptyState
+            icon="search"
+            title="אין תוצאות לחיפוש"
+            body="נסו מילה אחרת, שם לקוח או יעד."
+          />
+        ) : (
+          <EmptyState
+            icon="tasks"
+            title={empty.title}
+            body={empty.body}
+            action={tab === "upcoming" ? { href: "/trips/new", label: "נסיעה חדשה" } : undefined}
+          />
+        )
       ) : (
         <div className="stack" style={{ marginTop: "var(--sp-3)" }}>
           {list.items.map((item) => (

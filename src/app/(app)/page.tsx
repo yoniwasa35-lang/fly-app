@@ -3,7 +3,6 @@ import { QueueRow } from "@/components/QueueRow";
 import { getTodayQueue, type DayGroup, type LateTripGroup, type QueueItem } from "@/lib/queue/today";
 import { getFlightsToday, type FlightEvent } from "@/lib/queue/flights-today";
 import { DISPLAY_TZ, formatAbsoluteHe, formatRelativeHe, utcToZoned } from "@/lib/time/zones";
-import { BrandMark } from "@/components/Brand";
 import { Icon } from "@/components/Icon";
 
 export const dynamic = "force-dynamic";
@@ -169,7 +168,6 @@ export default async function TodayPage() {
   return (
     <>
       <header className="topbar">
-        <BrandMark className="topbar-brand" />
         <h1>
           היום
           <span className="sub">

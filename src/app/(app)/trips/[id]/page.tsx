@@ -33,6 +33,7 @@ import { DepartureEditor } from "./DepartureEditor";
 import { MoneyPanel } from "./MoneyPanel";
 import { DocumentsPanel } from "./DocumentsPanel";
 import { FlightsPanel, type FlightRow } from "./FlightsPanel";
+import { directionFromLabel } from "@/lib/trips/flightLabels";
 import { HotelPanel } from "./HotelPanel";
 import { CoverEditor } from "./CoverEditor";
 import { NextAction } from "./TripCard";
@@ -191,9 +192,25 @@ export default async function TripPage({
     .map((c) => {
       const f = c.flight;
       const filled = !!f && !!f.airlineCode && !!f.flightNumber;
+
+      /*
+       * טיסה שנוצרה ועוד לא מולאה יודעת את כיוונה רק מהתיאור. הכיוון
+       * קובע את כל ברירות המחדל שאחריו, ולכן הוא נקבע פעם אחת כאן.
+       */
+      const direction = (f?.direction as "outbound" | "inbound") ?? directionFromLabel(c.description);
+
+      /*
+       * ברירות מחדל לפי הכיוון: טיסת חזור יוצאת משדה היעד וחוזרת הביתה,
+       * בתאריך החזרה. קודם היא נפתחה על שדה היציאה ועל תאריך היציאה —
+       * שני תיקונים ידניים בכל טיסת חזור.
+       */
+      const fromTrip = direction === "inbound"
+        ? { departs: trip.returnAirport, arrives: trip.departureAirport, local: trip.returnLocal }
+        : { departs: trip.departureAirport, arrives: trip.returnAirport, local: trip.departureLocal };
+
       return {
         componentId: c.id,
-        direction: (f?.direction as "outbound" | "inbound") ?? "outbound",
+        direction,
         line: filled
           ? `${f!.departsAirport} ${f!.departsAtLocal.slice(11, 16)} ← ${f!.arrivesAirport}${f!.arrivesAtLocal ? ` ${f!.arrivesAtLocal.slice(11, 16)}` : ""}`
           : null,
@@ -205,13 +222,13 @@ export default async function TripPage({
         checkinDone: f?.checkinDone ?? false,
         defaults: {
           componentId: c.id,
-          direction: (f?.direction as "outbound" | "inbound") ?? "outbound",
+          direction,
           airlineCode: f?.airlineCode ?? "",
           flightNumber: f?.flightNumber ?? "",
-          departsAirport: f?.departsAirport ?? trip.departureAirport,
-          departsDate: f?.departsAtLocal?.slice(0, 10) ?? trip.departureLocal.slice(0, 10),
-          departsTime: f?.departsAtLocal?.slice(11, 16) ?? trip.departureLocal.slice(11, 16),
-          arrivesAirport: f?.arrivesAirport ?? trip.returnAirport,
+          departsAirport: f?.departsAirport ?? fromTrip.departs,
+          departsDate: f?.departsAtLocal?.slice(0, 10) ?? fromTrip.local.slice(0, 10),
+          departsTime: f?.departsAtLocal?.slice(11, 16) ?? fromTrip.local.slice(11, 16),
+          arrivesAirport: f?.arrivesAirport ?? fromTrip.arrives,
           arrivesDate: f?.arrivesAtLocal?.slice(0, 10) ?? "",
           arrivesTime: f?.arrivesAtLocal?.slice(11, 16) ?? "",
           baggageAllowance: f?.baggageAllowance ?? "",

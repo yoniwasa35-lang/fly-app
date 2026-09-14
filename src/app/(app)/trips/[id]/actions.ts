@@ -9,6 +9,7 @@ import { syncTrip } from "@/lib/milestones/sync";
 import { COMPONENT_TYPES } from "@/lib/domain/types";
 import { DISPLAY_TZ, zonedToUtc } from "@/lib/time/zones";
 import type { AnchorChangeSummary } from "@/lib/milestones/reconcile";
+import { FLIGHT_LABEL } from "@/lib/trips/flightLabels";
 
 export type MoveSummary = {
   movedCount: number;
@@ -234,7 +235,7 @@ export async function addFlightComponentAction(
     const c = await prisma.component.create({
       data: {
         tripId, type: "flight", status: "requested",
-        description: `טיסה ${direction === "outbound" ? "הלוך" : "חזור"}`,
+        description: FLIGHT_LABEL[direction],
         sortOrder: (last?.sortOrder ?? -1) + 1,
       },
     });

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { logoutAction } from "../../login/actions";
 import { Icon } from "@/components/Icon";
-import { BrandMark, Wordmark } from "@/components/Brand";
+import { Wordmark } from "@/components/Brand";
 import { hostAgencyName, ratePct, configuredHostFeeRate } from "@/lib/trips/finance";
 import { ThemeSetting } from "./ThemeSetting";
 
@@ -21,7 +21,6 @@ export default async function MorePage() {
   return (
     <>
       <header className="topbar">
-        <BrandMark className="topbar-brand" />
         <h1>
           עוד
           <span className="sub">הגדרות וכלים</span>

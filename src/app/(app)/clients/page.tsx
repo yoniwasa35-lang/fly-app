@@ -3,7 +3,7 @@ import { listClients } from "@/lib/clients/directory";
 import { formatAbsoluteHe, formatRelativeHe } from "@/lib/time/zones";
 import { TRIP_STATUS_HE } from "@/lib/domain/types";
 import { Icon } from "@/components/Icon";
-import { BrandMark } from "@/components/Brand";
+import { EmptyState } from "@/components/EmptyState";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +39,6 @@ export default async function ClientsPage({
   return (
     <>
       <header className="topbar">
-        <BrandMark className="topbar-brand" />
         <h1>
           לקוחות
           <span className="sub">
@@ -47,10 +46,6 @@ export default async function ClientsPage({
             {q && <> · תוצאות לחיפוש</>}
           </span>
         </h1>
-        <Link className="btn btn-primary" href="/clients/new">
-          <Icon name="plus" />
-          <span>לקוח חדש</span>
-        </Link>
       </header>
 
       <form className="searchbar" action="/clients" method="get" role="search">
@@ -70,13 +65,20 @@ export default async function ClientsPage({
       </form>
 
       {dir.rows.length === 0 ? (
-        <div className="empty">
-          <Icon name="clients" />
-          <strong>{q ? "אף לקוח לא תואם את החיפוש." : "אין עדיין לקוחות."}</strong>
-          {q
-            ? "נסו חלק מהשם, או את ארבע הספרות האחרונות של הטלפון."
-            : "כל לקוח שתפתחו לו נסיעה יופיע כאן מעצמו."}
-        </div>
+        q ? (
+          <EmptyState
+            icon="search"
+            title="אף לקוח לא תואם את החיפוש"
+            body="נסו חלק מהשם, או את ארבע הספרות האחרונות של הטלפון."
+          />
+        ) : (
+          <EmptyState
+            icon="clients"
+            title="בואו נוסיף את הלקוח הראשון"
+            body="כאן יישבו כל האנשים — שם, טלפון, וכל הנסיעות שלהם לאורך השנים."
+            action={{ href: "/clients/new", label: "לקוח חדש" }}
+          />
+        )
       ) : (
         <div className="stack">
           {dir.rows.map((c) => {

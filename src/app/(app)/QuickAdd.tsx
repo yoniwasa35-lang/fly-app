@@ -22,11 +22,19 @@ export function QuickAdd() {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
 
-  /* מסכי הגדרות ומסכי יצירה — כפתור "חדש" בתוכם הוא רעש, לא עזרה. */
+    /*
+   * הכפתור מוסתר היכן שהוא מתחרה בפעולה אחרת או סתם מרחף:
+   * מסכי יצירה (הוא כבר שם), מסכי הגדרות (אין מה ליצור בהם), ומסך
+   * נסיעה — שם הפעולה הראשית היא "שליחת הודעה ללקוח", ושני כפתורים
+   * ראשיים באותו מסך מבטלים זה את זה.
+   */
+  const insideTrip = /^\/trips\/[^/]+/.test(pathname) && !pathname.startsWith("/trips/new");
+
   const hidden =
     OPTIONS.some((o) => pathname.startsWith(o.href)) ||
     pathname.startsWith("/more") ||
-    pathname.startsWith("/messages");
+    pathname.startsWith("/messages") ||
+    insideTrip;
 
   useEffect(() => setOpen(false), [pathname]);
 

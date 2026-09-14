@@ -13,6 +13,7 @@ import {
 } from "@/app/actions";
 import { RESOLUTION_OPTIONS } from "./resolutions";
 import { WhatsAppPanel } from "./WhatsAppPanel";
+import { tap } from "@/lib/ui/feedback";
 
 /**
  * כפתור אחד שמבצע את הפעולה — סעיף 8.1. לא ניווט למסך שממנו אפשר לבצע.
@@ -43,12 +44,24 @@ export function MilestoneActions({ item }: { item: QueueItem }) {
     });
   };
 
+  const [done, setDone] = useState(false);
+
   const run = (fn: () => Promise<ActionResult>) => {
     setError(null);
     startTransition(async () => {
       const res = await fn();
-      if (!res.ok) setError(res.error);
-      else setMode("idle");
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      setMode("idle");
+      /*
+       * הבזק קצר של אישור לפני שהשורה נעלמת. בלעדיו הפריט פשוט נמוג,
+       * והעין לא מספיקה לקשר בין הלחיצה לתוצאה — וזה מה שגורם לאנשים
+       * ללחוץ פעמיים.
+       */
+      setDone(true);
+      tap();
     });
   };
 
@@ -146,7 +159,7 @@ export function MilestoneActions({ item }: { item: QueueItem }) {
           : "נשלח";
 
   return (
-    <div className="actions">
+    <div className={`actions${done ? " is-done" : ""}`}>
       {error && <span className="tag tag-overdue">{error}</span>}
       <button
         className={hasMessage ? "btn-wa" : "btn-primary"}

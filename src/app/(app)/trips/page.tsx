@@ -3,7 +3,7 @@ import { getTimeline, PAST_WINDOW_DAYS } from "@/lib/queue/timeline";
 import { formatAbsoluteHe, formatRelativeHe } from "@/lib/time/zones";
 import { TRIP_STATUS_HE } from "@/lib/domain/types";
 import { Icon } from "@/components/Icon";
-import { BrandMark } from "@/components/Brand";
+import { EmptyState } from "@/components/EmptyState";
 import { TimelineBoard } from "./TimelineBoard";
 
 export const dynamic = "force-dynamic";
@@ -56,7 +56,6 @@ export default async function TripsPage({
   return (
     <>
       <header className="topbar">
-        <BrandMark className="topbar-brand" />
         <h1>
           נסיעות
           <span className="sub">
@@ -64,10 +63,6 @@ export default async function TripsPage({
             {timeline.counts.hot > 0 && <> · {timeline.counts.hot} דורשות טיפול</>}
           </span>
         </h1>
-        <Link className="btn btn-primary" href="/trips/new">
-          <Icon name="plus" />
-          <span>נסיעה</span>
-        </Link>
       </header>
 
       <div className="tabs" role="tablist" aria-label="סינון נסיעות">
@@ -102,19 +97,32 @@ export default async function TripsPage({
       </form>
 
       {timeline.rows.length === 0 ? (
-        <div className="empty">
-          <Icon name="trips" />
-          <strong>
-            {q
-              ? "אין נסיעה שתואמת את החיפוש."
-              : tab.key === "traveling"
-                ? "אף לקוח לא בטיול כרגע."
-                : tab.key === "done"
-                  ? "עוד לא הסתיימה נסיעה."
-                  : "אין נסיעות קרובות."}
-          </strong>
-          {q ? "נסו שם לקוח, יעד או מספר תיק." : "כל נסיעה שתפתחו תופיע כאן."}
-        </div>
+        q ? (
+          <EmptyState
+            icon="search"
+            title="אין נסיעה שתואמת את החיפוש"
+            body="נסו שם לקוח, יעד או מספר תיק."
+          />
+        ) : tab.key === "traveling" ? (
+          <EmptyState
+            icon="trips"
+            title="אף לקוח לא בטיול כרגע"
+            body="כשלקוח ימריא, הנסיעה שלו תעבור לכאן מעצמה."
+          />
+        ) : tab.key === "done" ? (
+          <EmptyState
+            icon="trips"
+            title="עוד לא הסתיימה נסיעה"
+            body="כאן תישמר ההיסטוריה — כל נסיעה שחזרה, עם כל הפרטים שלה."
+          />
+        ) : (
+          <EmptyState
+            icon="trips"
+            title="בואו נפתח את הנסיעה הראשונה"
+            body="שבעה שדות, והמערכת תבנה לבד את כל לוח המשימות עד החזרה."
+            action={{ href: "/trips/new", label: "נסיעה חדשה" }}
+          />
+        )
       ) : (
         <>
           <div className="stack">
