@@ -1,0 +1,185 @@
+{
+  "id": "leisure_package",
+  "title": "חבילת נופש רגילה (טיסה + מלון)",
+  "description": "תבנית א׳ בסעיף 7. ברירת מחדל בלבד — לאמת מול הסוכן מול שתיים-שלוש הזמנות אמיתיות (סעיף 13.4).",
+  "default_time_of_day": "09:00",
+  "requires": ["departure", "return"],
+  "milestones": [
+    {
+      "key": "issue_confirmation",
+      "title": "הפקת אסמכתא ושליחתה",
+      "audience": "client",
+      "anchor": "booking",
+      "offset": "+0d",
+      "message_template_key": "booking_confirmation"
+    },
+    {
+      "key": "collect_passport_details",
+      "title": "קליטת פרטי נוסעים מדרכונים",
+      "audience": "agent",
+      "anchor": "booking",
+      "offset": "+1d",
+      "auto_complete": { "rule": "all_travelers_have_passport" }
+    },
+    {
+      "key": "verify_passport_validity",
+      "title": "בדיקת תוקף דרכונים",
+      "audience": "agent",
+      "anchor": "booking",
+      "offset": "+1d",
+      "blocked_by": [{ "rule": "milestone_done", "key": "collect_passport_details" }]
+    },
+    {
+      "key": "check_visa_requirements",
+      "title": "בדיקת דרישות ויזה ליעד",
+      "audience": "agent",
+      "anchor": "booking",
+      "offset": "+2d"
+    },
+    {
+      "key": "chase_supplier_confirmations",
+      "title": "מעקב אישורי ספקים",
+      "audience": "agent",
+      "anchor": "booking",
+      "offset": "+3d",
+      "auto_complete": { "rule": "all_components_resolved" }
+    },
+    {
+      "key": "offer_insurance",
+      "title": "הצעת ביטוח נסיעות",
+      "audience": "client",
+      "anchor": "departure",
+      "offset": "-60d",
+      "message_template_key": "insurance_offer"
+    },
+    {
+      "key": "offer_upsells",
+      "title": "הצעת השלמות (העברות, רכב, אטרקציות)",
+      "audience": "client",
+      "anchor": "departure",
+      "offset": "-45d",
+      "message_template_key": "upsell_offer"
+    },
+    {
+      "key": "collect_balance",
+      "title": "גביית יתרת תשלום",
+      "audience": "agent",
+      "anchor": "departure",
+      "offset": "-35d",
+      "auto_complete": { "rule": "balance_zero" }
+    },
+    {
+      "key": "close_insurance",
+      "title": "סגירת ביטוח או תיעוד סירוב",
+      "audience": "agent",
+      "anchor": "departure",
+      "offset": "-21d",
+      "requires_resolution": ["purchased", "declined", "external"],
+      "not_skippable": true
+    },
+    {
+      "key": "send_documents",
+      "title": "שליחת ערכת מסמכי נסיעה",
+      "audience": "client",
+      "anchor": "departure",
+      "offset": "-14d",
+      "message_template_key": "travel_documents",
+      "blocked_by": [{ "rule": "all_components_resolved" }]
+    },
+    {
+      "key": "eve_of_departure_reminder",
+      "title": "תזכורת ערב היציאה",
+      "audience": "client",
+      "anchor": "departure",
+      "offset": "-1d",
+      "at": "18:00",
+      "message_template_key": "eve_of_departure"
+    },
+    {
+      "key": "checkin_outbound_opens",
+      "title": "פתיחת צ'ק-אין הלוך",
+      "audience": "client",
+      "anchor": "flight_outbound",
+      "anchor_field": "checkin_opens_at",
+      "offset": "+0m",
+      "message_template_key": "checkin_open",
+      "auto_complete": { "rule": "flight_checkin_done", "direction": "outbound" }
+    },
+    {
+      "key": "checkin_outbound_closes",
+      "title": "סגירת צ'ק-אין הלוך",
+      "audience": "both",
+      "anchor": "flight_outbound",
+      "anchor_field": "checkin_closes_at",
+      "offset": "+0m",
+      "lead": "4h",
+      "message_template_key": "checkin_closing",
+      "auto_complete": { "rule": "flight_checkin_done", "direction": "outbound" }
+    },
+    {
+      "key": "flight_status_check",
+      "title": "בדיקת סטטוס טיסה",
+      "audience": "agent",
+      "anchor": "departure",
+      "offset": "-6h"
+    },
+    {
+      "key": "departure_message",
+      "title": "הודעת יציאה ומספר חירום",
+      "audience": "client",
+      "anchor": "departure",
+      "offset": "-3h",
+      "message_template_key": "departure_emergency_number"
+    },
+    {
+      "key": "midtrip_checkin",
+      "title": "צ'ק-אין אמצע חופשה",
+      "audience": "client",
+      "anchor": "departure",
+      "offset": "+2d",
+      "at": "11:00",
+      "message_template_key": "midtrip_checkin"
+    },
+    {
+      "key": "checkin_inbound_reminder",
+      "title": "תזכורת צ'ק-אין לחזרה",
+      "audience": "client",
+      "anchor": "flight_inbound",
+      "anchor_field": "checkin_opens_at",
+      "offset": "+0m",
+      "message_template_key": "checkin_inbound",
+      "auto_complete": { "rule": "flight_checkin_done", "direction": "inbound" }
+    },
+    {
+      "key": "welcome_back",
+      "title": "ברוכים השבים",
+      "audience": "client",
+      "anchor": "return",
+      "offset": "+0d",
+      "at": "18:00",
+      "message_template_key": "welcome_back"
+    },
+    {
+      "key": "post_trip_issue_check",
+      "title": "בדיקת תקלות ופיצוי אפשרי",
+      "audience": "agent",
+      "anchor": "return",
+      "offset": "+1d"
+    },
+    {
+      "key": "request_review",
+      "title": "בקשת ביקורת",
+      "audience": "client",
+      "anchor": "return",
+      "offset": "+4d",
+      "message_template_key": "review_request"
+    },
+    {
+      "key": "close_actual_commission",
+      "title": "סגירת עמלה בפועל",
+      "audience": "agent",
+      "anchor": "return",
+      "offset": "+30d"
+    }
+  ]
+}

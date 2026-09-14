@@ -1,0 +1,202 @@
+// מודל הנתונים — סעיף 5 באפיון.
+// SQLite לפיתוח. המודל יחסי טהור ועובר ל-Postgres בשינוי provider בלבד.
+// SQLite לא תומך ב-enum, לכן ערכי enum נשמרים כמחרוזות ומאולצים בשכבת TypeScript
+// (src/lib/domain/types.ts) ובוולידציית zod בכניסה למערכת.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Client {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String
+  email     String?
+  notes     String?
+  createdAt DateTime @default(now())
+  trips     Trip[]
+}
+
+model Trip {
+  id       String @id @default(cuid())
+  code     String @unique // מספר תיק לתצוגה, למשל 2609-114
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  destination String // יעד ראשי, טקסט חופשי
+  templateId  String // תבנית אבני הדרך — סעיף 7
+
+  // העוגן הראשי. departureAt נשמר ב-UTC, ולצידו השעה המקומית ואזור הזמן של השדה
+  // שממנו היא נגזרה. ראו סעיף 6.2 — זו המלכודת המרכזית של המערכת.
+  departureAt      DateTime
+  departureLocal   String // "YYYY-MM-DDTHH:mm" בשעון השדה
+  departureTz      String // IANA, למשל Asia/Jerusalem
+  departureAirport String // IATA
+
+  returnAt      DateTime
+  returnLocal   String
+  returnTz      String
+  returnAirport String
+
+  // תבנית ב׳ (אירוע ספורט) — העוגן הוא האירוע ולא הטיסה.
+  eventAt    DateTime?
+  eventLocal String?
+  eventTz    String?
+
+  bookedAt DateTime @default(now()) // עוגן booking
+  status   String   @default("active") // draft | active | traveling | returned | closed
+
+  priceToClient      Float @default(0)
+  supplierCost       Float @default(0)
+  amountPaid         Float @default(0) // נדרש לסגירה אוטומטית של "גביית יתרה" — סעיף 6.3
+  expectedCommission Float @default(0)
+  actualCommission   Float @default(0)
+
+  source String? // המלצה, פרסום, לקוח חוזר
+  notes  String?
+
+  travelers  Traveler[]
+  components Component[]
+  milestones Milestone[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, departureAt])
+  @@index([departureAt])
+}
+
+model Traveler {
+  id     String @id @default(cuid())
+  tripId String
+  trip   Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  firstNameLatin String // בדיוק כמו בדרכון
+  lastNameLatin  String
+  displayNameHe  String?
+  dateOfBirth    DateTime?
+
+  // מספר הדרכון מוצפן במנוחה (AES-256-GCM) ונמחק בסגירת התיק — סעיף 10.
+  passportNumberEnc String?
+  passportLast4     String? // לזיהוי מהיר בלי פענוח
+  passportExpiry    DateTime?
+  passportCountry   String?
+
+  phone  String?
+  isLead Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tripId])
+}
+
+model Component {
+  id     String @id @default(cuid())
+  tripId String
+  trip   Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  type        String // flight | hotel | transfer | car | insurance | activity | event_ticket | other
+  supplier    String?
+  reference   String? // PNR, מספר הזמנה
+  description String?
+  status      String  @default("requested") // requested | confirmed | cancelled | declined_by_client
+
+  // שני הדדליינים החשובים ביותר במערכת. כל אחד מייצר אבן דרך אוטומטית.
+  freeCancelUntil    DateTime?
+  supplierPaymentDue DateTime?
+
+  cost  Float @default(0)
+  price Float @default(0)
+
+  isUpsell       Boolean   @default(false)
+  clientResponse String? // accepted | declined | no_answer
+  declinedAt     DateTime? // תיעוד סירוב — הגנה משפטית
+
+  sortOrder Int     @default(0)
+  flight    Flight?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tripId])
+  @@index([freeCancelUntil])
+  @@index([supplierPaymentDue])
+}
+
+model Flight {
+  componentId String    @id
+  component   Component @relation(fields: [componentId], references: [id], onDelete: Cascade)
+
+  airlineCode  String // IATA, למשל LY, A3, W6
+  flightNumber String
+  direction    String // outbound | inbound
+
+  // שעה מקומית בשדה + אזור הזמן שלו. ה-UTC נגזר מהם ולא להפך.
+  departsAtLocal String
+  departsTz      String
+  departsAirport String
+  departsAtUtc   DateTime
+  arrivesAtLocal String
+  arrivesTz      String
+  arrivesAirport String
+  arrivesAtUtc   DateTime
+
+  // מחושבים מטבלת הכללים לפי חברת תעופה, ניתנים לדריסה ידנית.
+  checkinOpensAt    DateTime?
+  checkinClosesAt   DateTime?
+  checkinOverridden Boolean   @default(false)
+  checkinDone       Boolean   @default(false)
+  checkinDoneAt     DateTime?
+
+  baggageAllowance String?
+
+  updatedAt DateTime @updatedAt
+}
+
+model Milestone {
+  id     String @id @default(cuid())
+  tripId String
+  trip   Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  key      String // מזהה סוג, למשל send_documents, checkin_closes
+  title    String
+  audience String // agent | client | both
+
+  anchor        String // booking | departure | return | event | component_deadline | flight_outbound | flight_inbound | absolute
+  anchorRef     String? // componentId כשהעוגן הוא רכיב
+  anchorField   String? // checkin_opens_at | checkin_closes_at | free_cancel_until | supplier_payment_due
+  offsetMinutes Int     @default(0) // היסט חתום מהעוגן. שלילי = לפני
+  leadMinutes   Int     @default(0) // חלון ההתראה: pending→due כך וכך לפני המועד
+
+  dueAt DateTime // מחושב, נשמר ב-UTC
+  state String   @default("pending") // pending | due | overdue | blocked | done | skipped
+
+  blockRulesJson   String? // כללי החסימה מהתבנית
+  blockedByJson    String? // מה חוסם בפועל, כפי שחושב לאחרונה — לתצוגה
+  autoCompleteRule String?
+
+  skipReason   String?
+  completedAt  DateTime?
+  snoozedUntil DateTime?
+  snoozeReason String?
+  resolution   String? // לאבני דרך שדורשות בחירה מפורשת, למשל ביטוח
+
+  messageTemplateKey String?
+  isAutoGenerated    Boolean @default(true)
+  bornLate           Boolean @default(false) // נולדה כבר באיחור — סעיף 14
+  sortHint           Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tripId, key])
+  @@index([state, dueAt])
+  @@index([dueAt])
+  @@index([tripId, dueAt])
+}

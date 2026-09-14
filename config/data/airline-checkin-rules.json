@@ -1,0 +1,37 @@
+{
+  "_comment": [
+    "כללי צ'ק-אין אונליין לפי חברת תעופה. קובץ נתונים ניתן לעריכה — סעיף 5 באפיון.",
+    "opens_minutes_before / closes_minutes_before נמדדים מהמראת הטיסה בשעון המקומי של שדה היציאה.",
+    "late_checkin_fee=true פירושו שצ'ק-אין בשדה עולה כסף, ולכן ההתראה על סגירה חשובה במיוחד.",
+    "לאמת מול הסוכן — סעיף 13.5. המספרים כאן הם ברירת מחדל סבירה, לא מקור אמת."
+  ],
+  "default": {
+    "opens_minutes_before": 2880,
+    "closes_minutes_before": 180,
+    "late_checkin_fee": false,
+    "note": "ברירת מחדל: נפתח 48 שעות לפני, נסגר 3 שעות לפני."
+  },
+  "LY": { "name": "אל על", "opens_minutes_before": 4320, "closes_minutes_before": 180, "late_checkin_fee": false, "note": "נפתח 72 שעות לפני." },
+  "IZ": { "name": "ארקיע", "opens_minutes_before": 2880, "closes_minutes_before": 180, "late_checkin_fee": false },
+  "6H": { "name": "ישראייר", "opens_minutes_before": 2880, "closes_minutes_before": 180, "late_checkin_fee": false },
+  "W6": { "name": "ויז אייר", "opens_minutes_before": 4320, "closes_minutes_before": 180, "late_checkin_fee": true, "note": "לואו-קוסט. צ'ק-אין בשדה עולה כסף — התראת סגירה קריטית." },
+  "FR": { "name": "ריינאייר", "opens_minutes_before": 1440, "closes_minutes_before": 120, "late_checkin_fee": true, "note": "24 שעות בלי מושב בתשלום, 60 יום עם מושב. צ'ק-אין בשדה עולה כסף." },
+  "U2": { "name": "איזי ג'ט", "opens_minutes_before": 43200, "closes_minutes_before": 120, "late_checkin_fee": true, "note": "נפתח 30 יום לפני." },
+  "A3": { "name": "אגאן", "opens_minutes_before": 2880, "closes_minutes_before": 60, "late_checkin_fee": false },
+  "TK": { "name": "טורקיש", "opens_minutes_before": 1440, "closes_minutes_before": 90, "late_checkin_fee": false },
+  "LH": { "name": "לופטהנזה", "opens_minutes_before": 1380, "closes_minutes_before": 60, "late_checkin_fee": false },
+  "LX": { "name": "סוויס", "opens_minutes_before": 1380, "closes_minutes_before": 60, "late_checkin_fee": false },
+  "OS": { "name": "אוסטריאן", "opens_minutes_before": 1380, "closes_minutes_before": 60, "late_checkin_fee": false },
+  "BA": { "name": "בריטיש איירווייז", "opens_minutes_before": 1440, "closes_minutes_before": 60, "late_checkin_fee": false },
+  "AF": { "name": "אייר פראנס", "opens_minutes_before": 1800, "closes_minutes_before": 60, "late_checkin_fee": false },
+  "KL": { "name": "KLM", "opens_minutes_before": 1800, "closes_minutes_before": 60, "late_checkin_fee": false },
+  "IB": { "name": "איבריה", "opens_minutes_before": 1440, "closes_minutes_before": 60, "late_checkin_fee": false },
+  "VY": { "name": "ווילינג", "opens_minutes_before": 10080, "closes_minutes_before": 90, "late_checkin_fee": true },
+  "AZ": { "name": "ITA", "opens_minutes_before": 2880, "closes_minutes_before": 60, "late_checkin_fee": false },
+  "TP": { "name": "TAP", "opens_minutes_before": 1440, "closes_minutes_before": 60, "late_checkin_fee": false },
+  "EK": { "name": "אמירייטס", "opens_minutes_before": 2880, "closes_minutes_before": 90, "late_checkin_fee": false },
+  "FZ": { "name": "פליי דובאי", "opens_minutes_before": 2880, "closes_minutes_before": 90, "late_checkin_fee": true },
+  "RO": { "name": "טארום", "opens_minutes_before": 1440, "closes_minutes_before": 60, "late_checkin_fee": false },
+  "FB": { "name": "בולגריה אייר", "opens_minutes_before": 1440, "closes_minutes_before": 60, "late_checkin_fee": false },
+  "A9": { "name": "ג'ורג'יאן איירווייז", "opens_minutes_before": 1440, "closes_minutes_before": 120, "late_checkin_fee": false }
+}
