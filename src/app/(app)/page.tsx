@@ -2,6 +2,8 @@ import Link from "next/link";
 import { QueueRow } from "@/components/QueueRow";
 import { getTodayQueue, type DayGroup, type LateTripGroup, type QueueItem } from "@/lib/queue/today";
 import { formatAbsoluteHe, formatRelativeHe } from "@/lib/time/zones";
+import { BrandMark } from "@/components/Brand";
+import { Icon } from "@/components/Icon";
 
 export const dynamic = "force-dynamic";
 
@@ -112,6 +114,8 @@ export default async function TodayPage() {
   return (
     <>
       <header className="topbar">
+        {/* בטלפון אין לוגו בסרגל התחתון, ולכן הוא מופיע כאן — במסך הבית בלבד */}
+        <BrandMark className="topbar-brand" />
         <h1>
           היום
           <span className="sub">
@@ -119,11 +123,12 @@ export default async function TodayPage() {
             {actionable > 0 && <> · {actionable} לפעולה</>}
           </span>
         </h1>
-        <Link className="btn" href="/trips/new">תיק חדש</Link>
+        <Link className="btn btn-primary" href="/trips/new">תיק חדש</Link>
       </header>
 
       {nothingAtAll && (
         <div className="empty">
+          <Icon name="inbox" />
           <strong>אין מה לעשות עכשיו.</strong>
           כל מה שנדרש השבוע טופל. אבני דרך רחוקות יותר יופיעו כאן כשיגיע מועדן.
         </div>

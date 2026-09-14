@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { Timeline, TimelineRow } from "@/lib/queue/timeline";
 import { MILESTONE_STATE_HE } from "@/lib/domain/types";
 import { DISPLAY_TZ, formatRelativeHe, utcToZoned } from "@/lib/time/zones";
+import { Icon } from "@/components/Icon";
 
 /**
  * ציר הזמן של כל התיקים — סעיף 8.2.
@@ -60,7 +61,10 @@ export function TimelineBoard({ timeline, pastDays }: { timeline: Timeline; past
             {z.label}
           </button>
         ))}
-        <span className="hint" style={{ marginInlineStart: "auto" }}>← העתיד</span>
+        <span className="hint future-hint" style={{ marginInlineStart: "auto" }}>
+          <Icon name="arrow" />
+          <span>העתיד</span>
+        </span>
       </div>
 
       <div className="tl-grid">

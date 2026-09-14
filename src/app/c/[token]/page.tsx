@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { getPublicTrip, type PublicFlight } from "@/lib/trips/publicView";
 import { normalizePhone } from "@/lib/messages/phone";
 import { formatRelativeHe } from "@/lib/time/zones";
+import { BrandMark, Wordmark } from "@/components/Brand";
+import { Icon } from "@/components/Icon";
 
 /**
  * עמוד הלקוח — סעיף 8.4. עמוד web בקישור ייחודי, בלי התחברות, שנשלח
@@ -19,6 +21,20 @@ export const metadata: Metadata = {
   // עמוד פתוח עם פרטי לקוח. אין סיבה שיגיע למנועי חיפוש.
   robots: { index: false, follow: false, nocache: true },
 };
+
+/**
+ * הלוגו בראש עמוד הלקוח. זה המסך היחיד שלקוחות רואים, ולכן הוא היחיד
+ * שבו המותג מופיע בגודל מלא — בכל שלושת מצבי הנסיעה.
+ */
+function HeroBrand() {
+  return (
+    <>
+      <BrandMark />
+      <Wordmark sub />
+      <div className="brand-rule" />
+    </>
+  );
+}
 
 function waLink(phone: string, text: string): string | null {
   const n = normalizePhone(phone);
@@ -42,7 +58,9 @@ function FlightCard({ flight, now }: { flight: PublicFlight; now: Date }) {
           <span className="c-time num">{flight.departsTime}</span>
           <span className="c-place">{flight.fromAirport}</span>
         </div>
-        <span className="c-arrow" aria-hidden>←</span>
+        <span className="c-arrow">
+          <Icon name="arrow" />
+        </span>
         <div>
           {flight.arrivesTime ? (
             <span className="c-time num">{flight.arrivesTime}</span>
@@ -71,7 +89,10 @@ function FlightCard({ flight, now }: { flight: PublicFlight; now: Date }) {
         {flight.checkinDone ? (
           <>
             <dt>צ׳ק-אין</dt>
-            <dd className="c-done">בוצע ✓</dd>
+            <dd className="c-done">
+              <Icon name="check" />
+              <span>בוצע</span>
+            </dd>
           </>
         ) : flight.checkinClosesLabel ? (
           <>
@@ -105,6 +126,7 @@ export default async function ClientTripPage({ params }: { params: Promise<{ tok
       {/* ראש העמוד מתחלף בזמן הנסיעה — סעיף 8.4 */}
       {trip.phase === "returned" ? (
         <header className="c-hero c-hero-returned">
+          <HeroBrand />
           <span className="c-kicker">{trip.clientName}</span>
           <h1>ברוכים השבים</h1>
           <p className="c-muted">
@@ -116,6 +138,7 @@ export default async function ClientTripPage({ params }: { params: Promise<{ tok
         </header>
       ) : trip.phase === "traveling" ? (
         <header className="c-hero c-hero-traveling">
+          <HeroBrand />
           <span className="c-kicker">אתם ב{trip.destination}</span>
           <h1>שמרו את המספר הזה</h1>
           {trip.agent.phone ? (
@@ -142,6 +165,7 @@ export default async function ClientTripPage({ params }: { params: Promise<{ tok
         </header>
       ) : (
         <header className="c-hero">
+          <HeroBrand />
           <span className="c-kicker">{trip.clientName}</span>
           <h1>{trip.destination}</h1>
           <p className="c-countdown">{trip.countdown}</p>
@@ -196,7 +220,9 @@ export default async function ClientTripPage({ params }: { params: Promise<{ tok
           <ul className="c-booked">
             {trip.booked.map((b, i) => (
               <li key={i}>
-                <span className="c-check" aria-hidden>✓</span>
+                <span className="c-check">
+                  <Icon name="check" />
+                </span>
                 <span>
                   {b.description}
                   {b.reference && (
@@ -236,6 +262,8 @@ export default async function ClientTripPage({ params }: { params: Promise<{ tok
       )}
 
       <footer className="c-footer">
+        <Wordmark />
+        <br />
         תיק <span className="num">{trip.code}</span>
         {trip.agent.agency && <> · {trip.agent.agency}</>}
         <br />
