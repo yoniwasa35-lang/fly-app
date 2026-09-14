@@ -76,6 +76,7 @@ const componentSchema = z.object({
   isUpsell: z.string().optional(),
 });
 
+
 export type AddComponentState = { error?: string; ok?: boolean };
 
 export async function addComponentAction(
@@ -130,5 +131,56 @@ export async function deleteComponentAction(componentId: string): Promise<{ erro
     return {};
   } catch (e) {
     return { error: e instanceof Error ? e.message : "מחיקת הרכיב נכשלה" };
+  }
+}
+
+const editSchema = z.object({
+  componentId: z.string().min(1),
+  supplier: z.string().trim().optional(),
+  description: z.string().trim().optional(),
+  reference: z.string().trim().optional(),
+  freeCancelUntil: z.string().optional(),
+  supplierPaymentDue: z.string().optional(),
+  cost: z.coerce.number().min(0).optional(),
+  price: z.coerce.number().min(0).optional(),
+});
+
+export type EditComponentState = { error?: string; ok?: boolean };
+
+/**
+ * עריכת רכיב קיים. בלי זה אי אפשר היה להזין מספר הזמנה אחרי הפתיחה, והוא
+ * הדבר שהלקוח מחפש בעמוד שלו כשהוא עומד בדלפק.
+ */
+export async function editComponentAction(
+  _prev: EditComponentState,
+  formData: FormData,
+): Promise<EditComponentState> {
+  const parsed = editSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    return { error: parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(" · ") };
+  }
+  const v = parsed.data;
+
+  try {
+    const updated = await prisma.component.update({
+      where: { id: v.componentId },
+      data: {
+        supplier: v.supplier || null,
+        description: v.description || null,
+        reference: v.reference || null,
+        freeCancelUntil: v.freeCancelUntil ? zonedToUtc(`${v.freeCancelUntil}T23:59`, DISPLAY_TZ) : null,
+        supplierPaymentDue: v.supplierPaymentDue ? zonedToUtc(`${v.supplierPaymentDue}T12:00`, DISPLAY_TZ) : null,
+        ...(v.cost !== undefined ? { cost: v.cost } : {}),
+        ...(v.price !== undefined ? { price: v.price } : {}),
+      },
+      select: { tripId: true },
+    });
+
+    // שינוי מועד ביטול או תשלום מזיז את אבני הדרך שנגזרות ממנו.
+    await syncTrip(updated.tripId);
+    revalidatePath("/", "layout");
+    return { ok: true };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "עדכון הרכיב נכשל" };
   }
 }

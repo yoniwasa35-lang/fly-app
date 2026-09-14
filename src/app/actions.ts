@@ -16,6 +16,13 @@ import {
   updateFinance,
 } from "@/lib/trips/service";
 import { prepareMessage } from "@/lib/messages/prepare";
+import {
+  addTraveler,
+  removeTraveler,
+  revealPassport,
+  updateTraveler,
+  type TravelerInput,
+} from "@/lib/trips/travelers";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -106,4 +113,37 @@ export async function rotatePublicTokenAction(tripId: string): Promise<ActionRes
   return guard(async () => {
     await rotatePublicToken(tripId);
   });
+}
+
+// ------------------------------- נוסעים -------------------------------
+
+export async function addTravelerAction(
+  tripId: string,
+  values: TravelerInput,
+): Promise<ActionResult> {
+  return guard(async () => {
+    await addTraveler(tripId, values);
+  });
+}
+
+export async function updateTravelerAction(
+  travelerId: string,
+  values: TravelerInput,
+): Promise<ActionResult> {
+  return guard(() => updateTraveler(travelerId, values));
+}
+
+export async function removeTravelerAction(travelerId: string): Promise<ActionResult> {
+  return guard(() => removeTraveler(travelerId));
+}
+
+export type RevealResult = { ok: true; value: string } | { ok: false; error: string };
+
+/** פענוח מספר דרכון לבקשה מפורשת. לא מוחזר בשגרה עם שאר פרטי הנוסע. */
+export async function revealPassportAction(travelerId: string): Promise<RevealResult> {
+  try {
+    return { ok: true, value: await revealPassport(travelerId) };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "שגיאה" };
+  }
 }

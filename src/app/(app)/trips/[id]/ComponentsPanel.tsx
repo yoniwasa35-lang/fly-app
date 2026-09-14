@@ -1,9 +1,15 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import { Fragment, useActionState, useEffect, useState, useTransition } from "react";
 import { markCheckinDoneAction, setComponentStatusAction } from "@/app/actions";
 import { COMPONENT_STATUSES, COMPONENT_STATUS_HE, COMPONENT_TYPES, COMPONENT_TYPE_HE, type ComponentStatus, type ComponentType } from "@/lib/domain/types";
-import { addComponentAction, deleteComponentAction, type AddComponentState } from "./actions";
+import {
+  addComponentAction,
+  deleteComponentAction,
+  editComponentAction,
+  type AddComponentState,
+  type EditComponentState,
+} from "./actions";
 
 export type ComponentRow = {
   id: string;
@@ -16,6 +22,9 @@ export type ComponentRow = {
   statusHe: string;
   freeCancelUntil: string | null;
   supplierPaymentDue: string | null;
+  /** בפורמט YYYY-MM-DD, לטופס העריכה. */
+  freeCancelInput: string | null;
+  supplierPaymentInput: string | null;
   isFlight: boolean;
   checkinDone: boolean;
   checkinOpensAt: string | null;
@@ -26,6 +35,7 @@ export function ComponentsPanel({ tripId, components }: { tripId: string; compon
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [addState, addAction, addPending] = useActionState<AddComponentState, FormData>(
     addComponentAction,
     {},
@@ -48,7 +58,8 @@ export function ComponentsPanel({ tripId, components }: { tripId: string; compon
             </thead>
             <tbody>
               {components.map((c) => (
-                <tr key={c.id}>
+                <Fragment key={c.id}>
+                <tr>
                   <td>
                     <div style={{ fontWeight: 550 }}>{c.description || c.type}</div>
                     <div className="hint">
@@ -84,6 +95,9 @@ export function ComponentsPanel({ tripId, components }: { tripId: string; compon
                   <td>{c.freeCancelUntil ? <span className="num">{c.freeCancelUntil}</span> : "—"}</td>
                   <td>{c.supplierPaymentDue ? <span className="num">{c.supplierPaymentDue}</span> : "—"}</td>
                   <td>
+                    <button className="btn-quiet" onClick={() => setEditingId(editingId === c.id ? null : c.id)}>
+                      עריכה
+                    </button>
                     {c.isFlight && (
                       <button
                         className="btn-quiet"
@@ -114,6 +128,14 @@ export function ComponentsPanel({ tripId, components }: { tripId: string; compon
                     </button>
                   </td>
                 </tr>
+                {editingId === c.id && (
+                  <tr>
+                    <td colSpan={5} style={{ background: "#fbfcfd" }}>
+                      <EditComponentForm component={c} onDone={() => setEditingId(null)} />
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               ))}
             </tbody>
           </table>
@@ -166,5 +188,59 @@ export function ComponentsPanel({ tripId, components }: { tripId: string; compon
         </form>
       )}
     </div>
+  );
+}
+
+
+/**
+ * עריכת רכיב קיים. מספר ההזמנה הוא השדה החשוב כאן: הוא מה שהלקוח מחפש
+ * בעמוד שלו כשהוא עומד בדלפק, ועד עכשיו לא הייתה שום דרך להזין אותו.
+ */
+function EditComponentForm({ component, onDone }: { component: ComponentRow; onDone: () => void }) {
+  const [state, action, pending] = useActionState<EditComponentState, FormData>(editComponentAction, {});
+
+  useEffect(() => {
+    if (state.ok) onDone();
+  }, [state.ok, onDone]);
+
+  return (
+    <form action={action} style={{ padding: "0.6rem 0" }}>
+      <input type="hidden" name="componentId" value={component.id} />
+      {state.error && <div className="error" style={{ margin: "0 0 0.6rem" }}>{state.error}</div>}
+
+      <div className="grid2">
+        <div className="field">
+          <label>מספר הזמנה / PNR</label>
+          <input name="reference" defaultValue={component.reference ?? ""} dir="ltr" autoComplete="off" />
+        </div>
+        <div className="field">
+          <label>ספק</label>
+          <input name="supplier" defaultValue={component.supplier ?? ""} autoComplete="off" />
+        </div>
+      </div>
+
+      <div className="field">
+        <label>תיאור</label>
+        <input name="description" defaultValue={component.description ?? ""} autoComplete="off" />
+      </div>
+
+      <div className="grid2">
+        <div className="field">
+          <label>ביטול חינם עד</label>
+          <input name="freeCancelUntil" type="date" defaultValue={component.freeCancelInput ?? ""} />
+        </div>
+        <div className="field">
+          <label>תשלום לספק עד</label>
+          <input name="supplierPaymentDue" type="date" defaultValue={component.supplierPaymentInput ?? ""} />
+        </div>
+      </div>
+
+      <div className="actions">
+        <button className="btn-primary" type="submit" disabled={pending}>
+          {pending ? "שומר…" : "שמירה"}
+        </button>
+        <button type="button" className="btn-quiet" onClick={onDone}>ביטול</button>
+      </div>
+    </form>
   );
 }

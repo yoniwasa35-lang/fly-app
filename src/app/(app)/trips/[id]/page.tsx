@@ -13,7 +13,7 @@ import {
   type ComponentType,
   type MilestoneState,
 } from "@/lib/domain/types";
-import { buildDesiredMilestones } from "@/lib/milestones/engine";
+import { buildDesiredMilestones, passportValidUntilRequirement } from "@/lib/milestones/engine";
 import { loadTripSnapshot, parseBlockers } from "@/lib/milestones/sync";
 import { hostAgencyName } from "@/lib/trips/finance";
 import { airportLabel } from "@/lib/time/airports";
@@ -22,6 +22,7 @@ import { publicTripUrl } from "@/lib/trips/publicToken";
 import { whatsAppLink } from "@/lib/messages/whatsapp";
 import { ClientLinkPanel } from "./ClientLinkPanel";
 import { ComponentsPanel } from "./ComponentsPanel";
+import { TravelersPanel } from "./TravelersPanel";
 import { DepartureEditor } from "./DepartureEditor";
 import { MoneyPanel } from "./MoneyPanel";
 
@@ -152,6 +153,8 @@ export default async function TripPage({
             statusHe: COMPONENT_STATUS_HE[c.status as ComponentStatus] ?? c.status,
             freeCancelUntil: c.freeCancelUntil ? formatAbsoluteHe(c.freeCancelUntil, { withTime: false }) : null,
             supplierPaymentDue: c.supplierPaymentDue ? formatAbsoluteHe(c.supplierPaymentDue, { withTime: false }) : null,
+            freeCancelInput: c.freeCancelUntil ? utcToZoned(c.freeCancelUntil, DISPLAY_TZ).slice(0, 10) : null,
+            supplierPaymentInput: c.supplierPaymentDue ? utcToZoned(c.supplierPaymentDue, DISPLAY_TZ).slice(0, 10) : null,
             isFlight: !!c.flight,
             checkinDone: c.flight?.checkinDone ?? false,
             checkinOpensAt: c.flight?.checkinOpensAt
@@ -164,37 +167,25 @@ export default async function TripPage({
         />
       </div>
 
-      {/* ------------------------------ נוסעים וכסף ------------------------------ */}
-      <div className="card">
-        <h2>נוסעים</h2>
-        {trip.travelers.length === 0 ? (
-          <p className="hint">עדיין לא הוזנו נוסעים. אבן הדרך &quot;קליטת פרטי נוסעים מדרכונים&quot; תזכיר.</p>
-        ) : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr><th>שם בדרכון</th><th>דרכון</th><th>תוקף</th></tr>
-              </thead>
-              <tbody>
-                {trip.travelers.map((t) => (
-                  <tr key={t.id}>
-                    <td>
-                      <span className="ltr">{t.firstNameLatin} {t.lastNameLatin}</span>
-                      {t.isLead && <> <span className="tag">איש קשר</span></>}
-                    </td>
-                    <td>{t.passportLast4 ? <span className="num">•••{t.passportLast4}</span> : "—"}</td>
-                    <td>
-                      {t.passportExpiry
-                        ? <span className="num">{utcToZoned(t.passportExpiry, DISPLAY_TZ).slice(0, 10)}</span>
-                        : "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      <TravelersPanel
+        tripId={trip.id}
+        requiredUntil={utcToZoned(passportValidUntilRequirement(snapshot), DISPLAY_TZ).slice(0, 10)}
+        travelers={trip.travelers.map((t) => ({
+          id: t.id,
+          firstNameLatin: t.firstNameLatin,
+          lastNameLatin: t.lastNameLatin,
+          displayNameHe: t.displayNameHe,
+          passportLast4: t.passportLast4,
+          passportExpiry: t.passportExpiry ? utcToZoned(t.passportExpiry, DISPLAY_TZ).slice(0, 10) : null,
+          passportCountry: t.passportCountry,
+          dateOfBirth: t.dateOfBirth ? utcToZoned(t.dateOfBirth, DISPLAY_TZ).slice(0, 10) : null,
+          phone: t.phone,
+          isLead: t.isLead,
+          expiryOk: t.passportExpiry
+            ? t.passportExpiry.getTime() >= passportValidUntilRequirement(snapshot).getTime()
+            : null,
+        }))}
+      />
 
       <MoneyPanel
         tripId={trip.id}

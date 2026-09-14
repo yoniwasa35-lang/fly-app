@@ -958,3 +958,56 @@ details.collapse.day > summary .hint {
   color: var(--text-soft);
   line-height: 1.7;
 }
+
+/* ------------------------------- נוסעים ------------------------------ */
+
+.traveler-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.traveler-row:last-of-type { border-bottom: none; }
+
+.traveler-name {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.traveler-row .actions { margin: 0; }
+.traveler-row .hint { line-height: 1.7; }
+
+.expiry-bad { color: var(--overdue); font-weight: 650; }
+
+button.btn-quiet.inline {
+  min-height: auto;
+  padding: 0 0.3rem;
+  font-size: 0.75rem;
+  text-decoration: underline;
+}
+
+.traveler-form {
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin: 0.6rem 0;
+  background: #fbfcfd;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.86rem;
+  color: var(--text-soft);
+  margin-bottom: 0.7rem;
+}
+
+.checkbox input { width: auto; min-height: auto; }
