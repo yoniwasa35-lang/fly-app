@@ -50,7 +50,7 @@ export type TimelineFilters = {
   query?: string;
   windowDays?: number;
   onlyHot?: boolean;
-  status?: "open" | "traveling" | "all";
+  status?: "open" | "traveling" | "done" | "all";
   limit?: number;
   offset?: number;
 };
@@ -90,15 +90,25 @@ export async function getTimeline(filters: TimelineFilters = {}): Promise<Timeli
 
   const statuses: TripStatus[] =
     filters.status === "traveling" ? ["traveling"]
-    : filters.status === "all" ? ["draft", "active", "traveling", "returned"]
+    : filters.status === "done" ? ["returned", "closed"]
+    : filters.status === "all" ? ["draft", "active", "traveling", "returned", "closed"]
     : ["active", "traveling"];
 
   const query = filters.query?.trim();
+
+  /*
+   * חלון הציר חל על נסיעות חיות בלבד. נסיעות שהסתיימו נשאלות בלי חלון:
+   * הן כולן מאחורי windowStart מעצם הגדרתן, וסינון לפיו היה מחזיר רשימה
+   * ריקה בדיוק כשמחפשים נסיעה של אשתקד.
+   */
+  const inWindow =
+    filters.status === "done"
+      ? {}
+      : { departureAt: { lt: windowEnd }, returnAt: { gte: windowStart } };
+
   const where = {
     status: { in: statuses },
-    // תיק שכבר חזר מזמן לא שייך לציר. תיק שיוצא אחרי סוף החלון גם לא.
-    departureAt: { lt: windowEnd },
-    returnAt: { gte: windowStart },
+    ...inWindow,
     ...(query
       ? {
           OR: [
@@ -117,7 +127,12 @@ export async function getTimeline(filters: TimelineFilters = {}): Promise<Timeli
       // המיון חייב להיות מלא, לא רק לפי תאריך. שני תיקים שיוצאים באותו יום
       // הם מצב נפוץ בעונה, ובלי שובר שוויון הסדר בין שתי שאילתות אינו
       // מובטח — אותו תיק היה יכול להופיע בשני עמודים ותיק אחר להיעלם.
-      orderBy: [{ departureAt: "asc" }, { id: "asc" }],
+      // נסיעות שהסתיימו נקראות מהאחרונה לראשונה: מי שמחפש בהיסטוריה
+      // מתחיל כמעט תמיד מהנסיעה האחרונה, לא מזו של לפני שלוש שנים.
+      orderBy:
+        filters.status === "done"
+          ? [{ departureAt: "desc" as const }, { id: "desc" as const }]
+          : [{ departureAt: "asc" as const }, { id: "asc" as const }],
       skip: offset,
       take: limit,
       select: {

@@ -1,14 +1,27 @@
 import Link from "next/link";
 import type { QueueItem } from "@/lib/queue/today";
 import { AUDIENCE_HE } from "@/lib/domain/types";
-import { formatAbsoluteHe, formatRelativeHe } from "@/lib/time/zones";
+import { DISPLAY_TZ, formatAbsoluteHe, formatRelativeHe, utcToZoned } from "@/lib/time/zones";
 import { MilestoneActions } from "./MilestoneActions";
 
 /** האם אבן הדרך נוגעת בכסף — תגית נפרדת לפי סעיף 8.1. */
 const MONEY_KEYS = new Set(["collect_balance", "close_actual_commission"]);
 const isMoney = (key: string) => MONEY_KEYS.has(key) || key.startsWith("component_payment_due:");
 
-export function QueueRow({ item, now }: { item: QueueItem; now: Date }) {
+/**
+ * `clock` הופך את צד הזמן משעון יחסי ("בעוד 3 שעות") לשעה על השעון
+ * ("09:00"). זה הנכון למה שקורה היום — הסוכן מסדר את היום שלו לפי שעות —
+ * ולא נכון לפריט שמועדו בעוד שבועיים, שם השעה המדויקת חסרת משמעות.
+ */
+export function QueueRow({
+  item,
+  now,
+  clock = false,
+}: {
+  item: QueueItem;
+  now: Date;
+  clock?: boolean;
+}) {
   const rel = formatRelativeHe(item.dueAt, now);
   const stateClass =
     item.state === "blocked" ? "is-blocked"
@@ -22,9 +35,18 @@ export function QueueRow({ item, now }: { item: QueueItem; now: Date }) {
     <div className={`row ${stateClass}`}>
       <div className="title">{item.title}</div>
 
-      <div className="when">
-        {rel.text}
-        <small>{formatAbsoluteHe(item.dueAt, { withTime: true })}</small>
+      <div className={`when${clock ? " when-clock" : ""}`}>
+        {clock ? (
+          <>
+            <span className="num">{utcToZoned(item.dueAt, DISPLAY_TZ).slice(11, 16)}</span>
+            <small>{rel.text}</small>
+          </>
+        ) : (
+          <>
+            {rel.text}
+            <small>{formatAbsoluteHe(item.dueAt, { withTime: true })}</small>
+          </>
+        )}
       </div>
 
       <div className="meta">

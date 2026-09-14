@@ -1,23 +1,22 @@
 import Link from "next/link";
 import { listTemplates } from "@/lib/messages/store";
-import { VARIABLES } from "@/lib/messages/variables";
-import { getTemplate } from "@/lib/milestones/template";
+import { templateSchedules } from "@/lib/messages/schedule";
+import { Icon } from "@/components/Icon";
 import { TemplateEditor } from "./TemplateEditor";
 
 export const dynamic = "force-dynamic";
 
-/** לאיזו אבן דרך כל תבנית שייכת — כדי שהשמות באנגלית לא יהיו חידה. */
-function milestoneTitles(): Map<string, string> {
-  const map = new Map<string, string>();
-  for (const m of getTemplate("leisure_package").milestones) {
-    if (m.message_template_key) map.set(m.message_template_key, m.title);
-  }
-  return map;
-}
-
+/**
+ * תבניות ההודעות.
+ *
+ * המסך הזה נכתב מחדש סביב השאלה שהסוכן באמת שואל: "מה נשלח ללקוח, ומתי".
+ * קודם הוא פתח בטבלה של {{שם_פרטי}} ו-{{תאריך_יציאה}} — שפה של מי שבונה
+ * את המערכת, לא של מי שמשתמשת בה. המשתנים לא נעלמו, הם ירדו לתוך העורך
+ * ולבשו שמות בעברית; מי שרק רוצה לתקן ניסוח לא פוגש אותם בכלל.
+ */
 export default async function MessagesPage() {
-  const templates = await listTemplates();
-  const titles = milestoneTitles();
+  const [templates, schedules] = await Promise.all([listTemplates(), templateSchedules()]);
+
   const envMissing = (["AGENT_NAME", "AGENCY_NAME", "AGENT_EMERGENCY_PHONE"] as const).filter(
     (k) => !process.env[k]?.trim(),
   );
@@ -26,49 +25,55 @@ export default async function MessagesPage() {
     <>
       <header className="topbar">
         <h1>
-          תבניות הודעות
-          <span className="sub">{templates.length} נוסחים · נשלחים בוואטסאפ מהכפתור במסך היום</span>
+          הודעות ללקוחות
+          <span className="sub">{templates.length} נוסחים · נשלחים בוואטסאפ בלחיצה</span>
         </h1>
-        <Link className="btn" href="/">היום</Link>
+        <Link className="btn" href="/more">
+          עוד
+        </Link>
       </header>
 
       {envMissing.length > 0 && (
         <div className="error">
-          לא הוגדרו משתני הסביבה {envMissing.join(", ")}. הודעות שמשתמשות ב
-          {envMissing.includes("AGENT_NAME") ? "שם הסוכן" : "פרטי העסק"} לא יישלחו עד שיוגדרו.
+          <Icon name="alert" />
+          <span>
+            חסרים פרטי עסק ({envMissing.join(", ")}). הודעות שמשתמשות בהם לא יישלחו עד שיוגדרו
+            — אפשר לראות מה חסר במסך "עוד".
+          </span>
         </div>
       )}
 
-      <div className="card">
-        <h2>משתנים זמינים</h2>
-        <p className="hint">
-          כותבים אותם בתוך שתי סוגריים מסולסלות. לחיצה על משתנה מעתיקה אותו.
-        </p>
-        <div className="table-wrap">
-          <table>
-            <thead><tr><th>משתנה</th><th>מה זה</th><th>דוגמה</th></tr></thead>
-            <tbody>
-              {VARIABLES.map((v) => (
-                <tr key={v.name}>
-                  <td><code>{`{{${v.name}}}`}</code></td>
-                  <td>{v.description}</td>
-                  <td className="hint">{v.example}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <p className="hint" style={{ padding: "var(--sp-4) var(--sp-5) 0" }}>
+        שום הודעה לא נשלחת לבד. המערכת מכינה אותה ואומרת מתי — הלחיצה על "שליחה" שלכם.
+      </p>
 
-      {templates.map((t) => (
-        <TemplateEditor
-          key={t.key}
-          templateKey={t.key}
-          title={titles.get(t.key) ?? t.key}
-          body={t.body}
-          edited={t.edited}
-        />
-      ))}
+      <div className="stack" style={{ marginTop: "var(--sp-3)" }}>
+        {templates.map((t) => {
+          const s = schedules.get(t.key);
+          return (
+            <details key={t.key} className="collapse template-item">
+              <summary>
+                <span className="template-name">
+                  {s?.title ?? t.key}
+                  {t.edited && <span className="tag tag-done">נערך</span>}
+                  {s && !s.toClient && <span className="tag tag-agent">פנימי</span>}
+                </span>
+                <span className="hint template-when">
+                  {s ? s.when : "לפי מועד אבן הדרך"}
+                  {s?.basis && <> · {s.basis}</>}
+                </span>
+              </summary>
+
+              <TemplateEditor
+                templateKey={t.key}
+                title={s?.title ?? t.key}
+                body={t.body}
+                edited={t.edited}
+              />
+            </details>
+          );
+        })}
+      </div>
     </>
   );
 }

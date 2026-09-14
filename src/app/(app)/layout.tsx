@@ -1,18 +1,23 @@
 import Link from "next/link";
-import { logoutAction } from "../login/actions";
 import { BrandMark, Wordmark } from "@/components/Brand";
-import { Icon } from "@/components/Icon";
 import { NavLink } from "./NavLink";
-import { ThemeToggle } from "./ThemeToggle";
+import { QuickAdd } from "./QuickAdd";
 
-/** הניווט מופיע רק אחרי כניסה. דף ההתחברות יושב מחוץ לקבוצה הזו. */
+/**
+ * המעטפת של האזור המחובר.
+ *
+ * חמישה יעדים קבועים, ולא אחד יותר. הכלל שקובע מה נכנס לסרגל התחתון
+ * הוא כמה פעמים ביום נוגעים בו: "היום", "לקוחות", "נסיעות" ו"משימות"
+ * נפתחים כל הזמן; תבניות הודעות, הגדרות ויציאה — פעם בחודש, ולכן הם
+ * יושבים מאחורי "עוד". יציאה בסרגל ראשי גוזלת מקום מיעד שמשתמשים בו.
+ */
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="app">
       <nav className="nav" aria-label="ניווט ראשי">
         {/*
-          הלוגו מופיע רק במסך רחב. בטלפון הניווט יושב בתחתית המסך, בטווח
-          האגודל, ושם כל פיקסל שייך ליעד ניווט — לא לזהות.
+          הלוגו מופיע רק במסך רחב. בטלפון הסרגל התחתון יושב בטווח האגודל,
+          ושם כל פיקסל שייך ליעד ניווט — לא לזהות.
         */}
         <Link href="/" className="brand-lockup nav-brand" aria-label="LUA Travel — לדף הבית">
           <BrandMark />
@@ -20,19 +25,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </Link>
 
         <NavLink href="/" icon="today" label="היום" />
-        <NavLink href="/trips" icon="trips" label="כל התיקים" />
-        <NavLink href="/messages" icon="messages" label="הודעות" />
-
-        <form action={logoutAction}>
-          <button type="submit">
-            <Icon name="logout" />
-            <span>יציאה</span>
-          </button>
-        </form>
-
-        <ThemeToggle />
+        <NavLink href="/clients" icon="clients" label="לקוחות" />
+        <NavLink href="/trips" icon="trips" label="נסיעות" />
+        <NavLink href="/tasks" icon="tasks" label="משימות" />
+        <NavLink href="/more" icon="more" label="עוד" also={["/messages"]} />
       </nav>
+
       {children}
+
+      <QuickAdd />
     </div>
   );
 }

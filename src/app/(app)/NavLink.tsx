@@ -10,10 +10,23 @@ import { Icon, type IconName } from "@/components/Icon";
  * הסימון נעשה ב-aria-current ולא במחלקה בלבד: כך גם קורא מסך מודיע
  * "העמוד הנוכחי", והעיצוב נתלה על אותה תכונה במקום לשכפל מצב.
  */
-export function NavLink({ href, icon, label }: { href: string; icon: IconName; label: string }) {
+export function NavLink({
+  href,
+  icon,
+  label,
+  also = [],
+}: {
+  href: string;
+  icon: IconName;
+  label: string;
+  /** מסלולים נוספים שנחשבים לאותו יעד — למשל /messages ששייך ל"עוד". */
+  also?: string[];
+}) {
   const pathname = usePathname();
   // "/" הוא התאמה מדויקת בלבד, אחרת כל עמוד היה נחשב לעמוד הבית.
-  const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+  const active =
+    (href === "/" ? pathname === "/" : pathname.startsWith(href)) ||
+    also.some((p) => pathname.startsWith(p));
 
   return (
     <Link href={href} aria-current={active ? "page" : undefined}>

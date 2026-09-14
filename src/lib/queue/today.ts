@@ -104,19 +104,21 @@ const RESOLUTION_KEYS = new Set(["close_insurance"]);
 /** אבני דרך שהפעולה שלהן היא הזנת סכום, ולא סימון שבוצעו. */
 const AMOUNT_KEYS = new Set(["close_actual_commission"]);
 
-const TRIP_SELECT = {
+export const TRIP_SELECT = {
   id: true, code: true, destination: true, departureAt: true,
   client: { select: { name: true, phone: true } },
 } as const;
 
-type Row = {
+export type Row = {
   id: string; key: string; title: string; audience: string; state: string;
   dueAt: Date; blockedByJson: string | null; bornLate: boolean;
   messageTemplateKey: string | null;
   trip: { id: string; code: string; destination: string; departureAt: Date; client: { name: string; phone: string } };
 };
 
-function toItem(r: Row): QueueItem {
+/** ממפה שורה מהמסד לפריט תור. מיוצא כדי שמסך המשימות ישתמש
+ * באותו מיפוי בדיוק — שני מיפויים לאותו דבר נפרדים ביום הראשון. */
+export function toItem(r: Row): QueueItem {
   return {
     id: r.id,
     key: r.key,

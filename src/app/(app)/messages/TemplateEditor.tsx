@@ -32,12 +32,9 @@ export function TemplateEditor({
   return (
     <form action={formAction} className="card template-card">
       <input type="hidden" name="key" value={templateKey} />
-      <h2>
-        {title}{" "}
-        {edited && <span className="tag tag-done">נערך</span>}
-      </h2>
       <p className="hint">
-        קובץ ברירת המחדל: <code>config/messages/{templateKey}.txt</code>
+        כתבו את הנוסח כמו שהוא יישלח. כדי לשתול פרט שמשתנה מלקוח ללקוח —
+        לחצו על אחד הכפתורים מתחת לתיבה.
       </p>
 
       {state.error && <div className="error" style={{ margin: "0.5rem 0" }}>{state.error}</div>}
@@ -50,11 +47,20 @@ export function TemplateEditor({
         aria-label={`נוסח ההודעה: ${title}`}
       />
 
-      <div className="var-list">
+      {/*
+        הכפתורים נושאים שם בעברית ולא את הקוד עצמו. מי שרוצה לדעת מה
+        נשתל רואה דוגמה אמיתית ב-title, ומי שרק מתקן ניסוח לא נתקל בקוד.
+      */}
+      <div className="var-list" role="group" aria-label="פרטים שמשתנים מלקוח ללקוח">
         {VARIABLES.map((v) => (
-          <code key={v.name} onClick={() => insertVariable(v.name)} title={v.description}>
-            {`{{${v.name}}}`}
-          </code>
+          <button
+            key={v.name}
+            type="button"
+            onClick={() => insertVariable(v.name)}
+            title={`${v.description} — לדוגמה: ${v.example}`}
+          >
+            {v.description}
+          </button>
         ))}
       </div>
 
@@ -92,7 +98,8 @@ export function TemplateEditor({
         <>
           {preview.unknown.length > 0 && (
             <div className="error" style={{ margin: "0.6rem 0 0" }}>
-              משתנים שלא קיימים: {preview.unknown.join(", ")}. בדקו איות מול הרשימה למעלה.
+              יש בנוסח פרט שהמערכת לא מכירה: {preview.unknown.join(", ")}. השתמשו בכפתורים
+              מתחת לתיבה במקום לכתוב אותו ביד.
             </div>
           )}
           <div className="preview">{preview.text}</div>

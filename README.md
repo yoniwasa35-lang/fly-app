@@ -59,7 +59,10 @@ npm run preflight https://your-app.vercel.app <DAILY_JOB_TOKEN>
 | חסימות (6.4) | `evaluateBlockers` ב-`engine.ts` |
 | עדכון עוגן (6.5) | `src/lib/milestones/reconcile.ts` + `sync.ts` |
 | תבנית א׳ (סעיף 7) | `config/templates/leisure-package.json` |
-| מסך "היום" (8.1) | `src/app/page.tsx` + `src/lib/queue/today.ts` |
+| מסך "היום" (8.1) | `src/app/(app)/page.tsx` + `src/lib/queue/today.ts` |
+| לקוחות | `src/app/(app)/clients/` + `src/lib/clients/directory.ts` |
+| משימות | `src/app/(app)/tasks/` + `src/lib/queue/tasks.ts` |
+| "עוד" והגדרות | `src/app/(app)/more/` |
 | מסך תיק בודד (8.3) | `src/app/trips/[id]/page.tsx` |
 | ה-job היומי (סעיף 10) | `src/lib/jobs/daily.ts` |
 | כניסה למערכת | `src/middleware.ts` + `src/lib/auth/session.ts` |
