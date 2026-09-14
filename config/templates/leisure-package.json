@@ -3,7 +3,10 @@
   "title": "חבילת נופש רגילה (טיסה + מלון)",
   "description": "תבנית א׳ בסעיף 7. ברירת מחדל בלבד — לאמת מול הסוכן מול שתיים-שלוש הזמנות אמיתיות (סעיף 13.4).",
   "default_time_of_day": "09:00",
-  "requires": ["departure", "return"],
+  "requires": [
+    "departure",
+    "return"
+  ],
   "milestones": [
     {
       "key": "issue_confirmation",
@@ -19,7 +22,9 @@
       "audience": "agent",
       "anchor": "booking",
       "offset": "+1d",
-      "auto_complete": { "rule": "all_travelers_have_passport" }
+      "auto_complete": {
+        "rule": "all_travelers_have_passport"
+      }
     },
     {
       "key": "verify_passport_validity",
@@ -27,7 +32,12 @@
       "audience": "agent",
       "anchor": "booking",
       "offset": "+1d",
-      "blocked_by": [{ "rule": "milestone_done", "key": "collect_passport_details" }]
+      "blocked_by": [
+        {
+          "rule": "milestone_done",
+          "key": "collect_passport_details"
+        }
+      ]
     },
     {
       "key": "check_visa_requirements",
@@ -42,7 +52,9 @@
       "audience": "agent",
       "anchor": "booking",
       "offset": "+3d",
-      "auto_complete": { "rule": "all_components_resolved" }
+      "auto_complete": {
+        "rule": "all_components_resolved"
+      }
     },
     {
       "key": "offer_insurance",
@@ -66,7 +78,9 @@
       "audience": "agent",
       "anchor": "departure",
       "offset": "-35d",
-      "auto_complete": { "rule": "balance_zero" }
+      "auto_complete": {
+        "rule": "balance_zero"
+      }
     },
     {
       "key": "close_insurance",
@@ -74,7 +88,11 @@
       "audience": "agent",
       "anchor": "departure",
       "offset": "-21d",
-      "requires_resolution": ["purchased", "declined", "external"],
+      "requires_resolution": [
+        "purchased",
+        "declined",
+        "external"
+      ],
       "not_skippable": true
     },
     {
@@ -84,7 +102,11 @@
       "anchor": "departure",
       "offset": "-14d",
       "message_template_key": "travel_documents",
-      "blocked_by": [{ "rule": "all_components_resolved" }]
+      "blocked_by": [
+        {
+          "rule": "all_components_resolved"
+        }
+      ]
     },
     {
       "key": "eve_of_departure_reminder",
@@ -103,7 +125,10 @@
       "anchor_field": "checkin_opens_at",
       "offset": "+0m",
       "message_template_key": "checkin_open",
-      "auto_complete": { "rule": "flight_checkin_done", "direction": "outbound" }
+      "auto_complete": {
+        "rule": "flight_checkin_done",
+        "direction": "outbound"
+      }
     },
     {
       "key": "checkin_outbound_closes",
@@ -114,7 +139,10 @@
       "offset": "+0m",
       "lead": "4h",
       "message_template_key": "checkin_closing",
-      "auto_complete": { "rule": "flight_checkin_done", "direction": "outbound" }
+      "auto_complete": {
+        "rule": "flight_checkin_done",
+        "direction": "outbound"
+      }
     },
     {
       "key": "flight_status_check",
@@ -148,7 +176,10 @@
       "anchor_field": "checkin_opens_at",
       "offset": "+0m",
       "message_template_key": "checkin_inbound",
-      "auto_complete": { "rule": "flight_checkin_done", "direction": "inbound" }
+      "auto_complete": {
+        "rule": "flight_checkin_done",
+        "direction": "inbound"
+      }
     },
     {
       "key": "welcome_back",
@@ -176,10 +207,13 @@
     },
     {
       "key": "close_actual_commission",
-      "title": "סגירת עמלה בפועל",
+      "title": "סגירת הרווח בפועל",
       "audience": "agent",
       "anchor": "return",
-      "offset": "+30d"
+      "offset": "+30d",
+      "auto_complete": {
+        "rule": "supplier_cost_settled"
+      }
     }
   ]
 }

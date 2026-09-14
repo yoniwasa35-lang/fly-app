@@ -42,7 +42,6 @@ export type NewTripInput = {
   priceToClient?: number;
   supplierCost?: number;
   amountPaid?: number;
-  expectedCommission?: number;
   source?: string | null;
   notes?: string | null;
 };
@@ -104,7 +103,6 @@ export async function createTrip(input: NewTripInput): Promise<{ id: string; cod
         priceToClient: input.priceToClient ?? 0,
         supplierCost: input.supplierCost ?? 0,
         amountPaid: input.amountPaid ?? 0,
-        expectedCommission: input.expectedCommission ?? 0,
         source: input.source ?? null,
         notes: input.notes ?? null,
       },
@@ -307,16 +305,23 @@ export async function closeTrip(tripId: string): Promise<void> {
  */
 export async function updateFinance(
   tripId: string,
-  values: {
-    priceToClient: number;
-    supplierCost: number;
-    expectedCommission: number;
-    actualCommission: number;
-  },
+  values: { priceToClient: number; supplierCost: number },
 ): Promise<void> {
   for (const [key, value] of Object.entries(values)) {
     if (!Number.isFinite(value) || value < 0) throw new Error(`ערך לא תקין בשדה ${key}`);
   }
   await prisma.trip.update({ where: { id: tripId }, data: values });
+  await refreshTripStates(tripId);
+}
+
+/**
+ * סגירת העלות בפועל — מה שמוזן באבן הדרך שנפתחת 30 יום אחרי החזרה.
+ * הרווח בפועל נגזר מזה ולא מוזן בנפרד.
+ */
+export async function settleSupplierCost(tripId: string, actualSupplierCost: number): Promise<void> {
+  if (!Number.isFinite(actualSupplierCost) || actualSupplierCost < 0) {
+    throw new Error("עלות ספקים לא תקינה");
+  }
+  await prisma.trip.update({ where: { id: tripId }, data: { actualSupplierCost } });
   await refreshTripStates(tripId);
 }

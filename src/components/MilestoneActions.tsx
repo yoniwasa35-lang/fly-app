@@ -5,6 +5,7 @@ import type { QueueItem } from "@/lib/queue/today";
 import {
   completeMilestoneAction,
   prepareMessageAction,
+  settleSupplierCostAction,
   skipMilestoneAction,
   snoozeMilestoneAction,
   type ActionResult,
@@ -24,7 +25,8 @@ import { WhatsAppPanel } from "./WhatsAppPanel";
 export function MilestoneActions({ item }: { item: QueueItem }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<"idle" | "more" | "skip" | "snooze" | "resolve" | "whatsapp">("idle");
+  const [mode, setMode] = useState<"idle" | "more" | "skip" | "snooze" | "resolve" | "whatsapp" | "amount">("idle");
+  const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
   const [resolution, setResolution] = useState(RESOLUTION_OPTIONS[0]?.value ?? "");
   const [prepared, setPrepared] = useState<Extract<PrepareMessageResult, { ok: true }>["message"] | null>(null);
@@ -57,6 +59,29 @@ export function MilestoneActions({ item }: { item: QueueItem }) {
         onSent={() => run(() => completeMilestoneAction(item.id))}
         onCancel={() => { setPrepared(null); setMode("idle"); }}
       />
+    );
+  }
+
+  if (mode === "amount") {
+    return (
+      <div className="actions wide">
+        <input
+          autoFocus type="number" min="0" step="1" value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          placeholder="כמה שילמנו לספקים בפועל"
+          aria-label="עלות ספקים בפועל"
+          style={{ flex: 1, minWidth: "10rem" }}
+        />
+        <button
+          className="btn-primary"
+          disabled={pending || amount.trim() === "" || Number(amount) < 0}
+          onClick={() => run(() => settleSupplierCostAction(item.trip.id, Number(amount), item.id))}
+        >
+          סגירת הרווח
+        </button>
+        <button className="btn-quiet" onClick={() => setMode("idle")}>ביטול</button>
+        {error && <span className="tag tag-overdue">{error}</span>}
+      </div>
     );
   }
 
@@ -114,9 +139,11 @@ export function MilestoneActions({ item }: { item: QueueItem }) {
     ? "וואטסאפ"
     : item.requiresResolution
       ? "הכרעה"
-      : item.audience === "agent"
-        ? "בוצע"
-        : "נשלח";
+      : item.requiresAmount
+        ? "סגירת רווח"
+        : item.audience === "agent"
+          ? "בוצע"
+          : "נשלח";
 
   return (
     <div className="actions">
@@ -127,6 +154,7 @@ export function MilestoneActions({ item }: { item: QueueItem }) {
         onClick={() => {
           if (hasMessage) return openWhatsApp();
           if (item.requiresResolution) return setMode("resolve");
+          if (item.requiresAmount) return setMode("amount");
           return run(() => completeMilestoneAction(item.id));
         }}
       >

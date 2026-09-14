@@ -47,6 +47,7 @@ export function makeTrip(overrides: Partial<TripSnapshot> = {}): TripSnapshot {
     eventAt: null,
     priceToClient: 12000,
     amountPaid: 3000,
+    actualSupplierCost: null,
     components: [
       makeFlightComponent({
         id: "c_out",

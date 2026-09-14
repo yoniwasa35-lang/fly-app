@@ -150,6 +150,14 @@ export function NewTripForm({
             <input id="amountPaid" name="amountPaid" type="number" min="0" step="1" defaultValue="0" />
           </div>
         </div>
+        <div className="field">
+          <label htmlFor="supplierCost">עלות ספקים משוערת</label>
+          <input id="supplierCost" name="supplierCost" type="number" min="0" step="1" defaultValue="0" />
+          <p className="hint">
+            הרווח הוא ההפרש בין המחיר לעלות, ולכן הוא נגזר ולא מוזן. העלות בפועל
+            נסגרת אחרי החזרה, ואז רואים כמה באמת נשאר.
+          </p>
+        </div>
         <p className="hint">כשהשולם מגיע למחיר, אבן הדרך של גביית היתרה נסגרת לבד.</p>
       </div>
 

@@ -7,7 +7,13 @@ import {
   snoozeMilestone,
   reopenMilestone,
 } from "@/lib/milestones/actions";
-import { markCheckinDone, recordPayment, setComponentStatus, updateFinance } from "@/lib/trips/service";
+import {
+  markCheckinDone,
+  recordPayment,
+  setComponentStatus,
+  settleSupplierCost,
+  updateFinance,
+} from "@/lib/trips/service";
 import { prepareMessage } from "@/lib/messages/prepare";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -74,12 +80,22 @@ export async function prepareMessageAction(milestoneId: string): Promise<Prepare
 /** מעקב סכומים בלבד — סעיף 3 מוציא הנהלת חשבונות מהגדרת v1. */
 export async function updateFinanceAction(
   tripId: string,
-  values: {
-    priceToClient: number;
-    supplierCost: number;
-    expectedCommission: number;
-    actualCommission: number;
-  },
+  values: { priceToClient: number; supplierCost: number },
 ): Promise<ActionResult> {
   return guard(() => updateFinance(tripId, values));
+}
+
+/**
+ * סגירת העלות בפועל. אם הפעולה מגיעה מאבן הדרך שנפתחת אחרי החזרה, היא
+ * נסגרת באותה פעולה — הכפתור עושה את הדבר עצמו ולא מנווט אליו (סעיף 8.1).
+ */
+export async function settleSupplierCostAction(
+  tripId: string,
+  actualSupplierCost: number,
+  milestoneId?: string | null,
+): Promise<ActionResult> {
+  return guard(async () => {
+    await settleSupplierCost(tripId, actualSupplierCost);
+    if (milestoneId) await completeMilestone(milestoneId);
+  });
 }

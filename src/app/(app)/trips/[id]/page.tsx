@@ -196,9 +196,11 @@ export default async function TripPage({
         tripId={trip.id}
         priceToClient={trip.priceToClient}
         supplierCost={trip.supplierCost}
+        actualSupplierCost={trip.actualSupplierCost}
         amountPaid={trip.amountPaid}
-        expectedCommission={trip.expectedCommission}
-        actualCommission={trip.actualCommission}
+        settleMilestoneId={
+          trip.milestones.find((m) => m.key === "close_actual_commission" && isOpenState(m.state))?.id ?? null
+        }
       />
 
       {/* ------------------------------ שינוי העוגן ------------------------------ */}

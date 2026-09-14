@@ -81,7 +81,6 @@ async function main() {
       ],
       priceToClient: price,
       supplierCost: Math.round(price * 0.78),
-      expectedCommission: Math.round(price * 0.12),
       amountPaid: rand(i + 200) > 0.45 ? price : Math.round(price * 0.3),
       source: pick(SOURCES, i),
     });

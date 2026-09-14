@@ -51,6 +51,8 @@ export type QueueItem = {
   blockers: Blocker[];
   bornLate: boolean;
   requiresResolution: boolean;
+  /** אבן דרך שהפעולה שלה היא הזנת מספר — כרגע רק סגירת הרווח בפועל. */
+  requiresAmount: boolean;
   messageTemplateKey: string | null;
   trip: {
     id: string;
@@ -95,6 +97,9 @@ export type TodayQueue = {
 /** אבני דרך שדורשות הכרעה מפורשת ולא סתם "בוצע" — סעיף 5, ביטוח. */
 const RESOLUTION_KEYS = new Set(["close_insurance"]);
 
+/** אבני דרך שהפעולה שלהן היא הזנת סכום, ולא סימון שבוצעו. */
+const AMOUNT_KEYS = new Set(["close_actual_commission"]);
+
 const TRIP_SELECT = {
   id: true, code: true, destination: true, departureAt: true,
   client: { select: { name: true, phone: true } },
@@ -118,6 +123,7 @@ function toItem(r: Row): QueueItem {
     blockers: parseBlockers(r.blockedByJson),
     bornLate: r.bornLate,
     requiresResolution: RESOLUTION_KEYS.has(r.key),
+    requiresAmount: AMOUNT_KEYS.has(r.key),
     messageTemplateKey: r.messageTemplateKey,
     trip: {
       id: r.trip.id,

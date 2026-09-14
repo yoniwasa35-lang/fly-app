@@ -23,6 +23,7 @@ const autoCompleteSchema = z.discriminatedUnion("rule", [
   z.object({ rule: z.literal("all_components_resolved") }),
   z.object({ rule: z.literal("all_components_confirmed") }),
   z.object({ rule: z.literal("balance_zero") }),
+  z.object({ rule: z.literal("supplier_cost_settled") }),
   z.object({ rule: z.literal("all_travelers_have_passport") }),
   z.object({ rule: z.literal("flight_checkin_done"), direction: z.enum(["outbound", "inbound"]) }),
   z.object({ rule: z.literal("component_type_confirmed"), type: z.string() }),

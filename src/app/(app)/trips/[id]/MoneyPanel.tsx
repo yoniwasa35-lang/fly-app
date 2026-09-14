@@ -1,44 +1,43 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { recordPaymentAction, updateFinanceAction } from "@/app/actions";
+import { recordPaymentAction, settleSupplierCostAction, updateFinanceAction } from "@/app/actions";
+import { shekels, tripFinance } from "@/lib/trips/finance";
 
 /**
  * פאנל הכספים — סעיף 8.3.
  *
- * זו לא הנהלת חשבונות (סעיף 3 מוציא את זה מהגדרת v1 במפורש). זה מעקב
- * סכומים: מה הלקוח חייב, מה שולם, כמה עולה לנו, וכמה באמת נשאר בכיס.
+ * מודל ההכנסה: מתמחרים מעל עלות הספק ומרוויחים את ההפרש. לכן אין כאן שדה
+ * "עמלה" — הרווח נגזר. מה שמזינים זה מחיר ועלות, ואחרי הנסיעה את העלות
+ * האמיתית, שכמעט תמיד שונה מהמשוערת.
  *
- * הרווח בפועל מוצג לצד הצפוי, כי הפער ביניהם הוא הדבר שסוכן מגלה מאוחר
- * מדי — ואבן הדרך "סגירת עמלה בפועל" קיימת בדיוק בשבילו.
+ * זו לא הנהלת חשבונות (סעיף 3), רק מעקב סכומים.
  */
 export function MoneyPanel({
-  tripId, priceToClient, supplierCost, amountPaid, expectedCommission, actualCommission,
+  tripId, priceToClient, supplierCost, actualSupplierCost, amountPaid, settleMilestoneId,
 }: {
   tripId: string;
   priceToClient: number;
   supplierCost: number;
+  actualSupplierCost: number | null;
   amountPaid: number;
-  expectedCommission: number;
-  actualCommission: number;
+  /** אבן הדרך של סגירת הרווח, אם היא עדיין פתוחה. */
+  settleMilestoneId: string | null;
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
+  const [settling, setSettling] = useState(false);
   const [paid, setPaid] = useState(String(amountPaid));
 
-  const fmt = (n: number) => `${Math.round(n).toLocaleString("he-IL")} ₪`;
-  const balance = priceToClient - amountPaid;
-  const margin = priceToClient - supplierCost;
-  const marginPct = priceToClient > 0 ? (margin / priceToClient) * 100 : 0;
-  const commissionGap = actualCommission > 0 ? actualCommission - expectedCommission : 0;
+  const f = tripFinance({ priceToClient, supplierCost, actualSupplierCost, amountPaid });
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>) => {
     setError(null);
     startTransition(async () => {
       const res = await fn();
       if (!res.ok) setError(res.error ?? "שגיאה");
-      else setEditing(false);
+      else { setEditing(false); setSettling(false); }
     });
   };
 
@@ -49,38 +48,49 @@ export function MoneyPanel({
       <div className="money-grid">
         <div className="money-cell">
           <span className="k">מחיר ללקוח</span>
-          <span className="v num">{fmt(priceToClient)}</span>
+          <span className="v num">{shekels(f.priceToClient)}</span>
         </div>
         <div className="money-cell">
           <span className="k">שולם</span>
-          <span className="v num">{fmt(amountPaid)}</span>
+          <span className="v num">{shekels(f.amountPaid)}</span>
         </div>
-        <div className={`money-cell ${balance > 0 ? "warn" : "good"}`}>
+        <div className={`money-cell ${f.balance > 0 ? "warn" : "good"}`}>
           <span className="k">יתרה לגבייה</span>
-          <span className="v num">{fmt(balance)}</span>
+          <span className="v num">{shekels(f.balance)}</span>
         </div>
+
         <div className="money-cell">
-          <span className="k">עלות ספקים</span>
-          <span className="v num">{fmt(supplierCost)}</span>
+          <span className="k">עלות ספקים {f.settled && "(משוערת)"}</span>
+          <span className="v num">{shekels(f.supplierCost)}</span>
         </div>
-        <div className={`money-cell ${margin > 0 ? "good" : "warn"}`}>
-          <span className="k">רווח גולמי</span>
-          <span className="v num">{fmt(margin)}</span>
-          <span className="sub num">{marginPct.toFixed(0)}%</span>
+        <div className={`money-cell ${f.settled ? "" : f.expectedMargin > 0 ? "good" : "warn"}`}>
+          <span className="k">רווח צפוי</span>
+          <span className="v num">{shekels(f.expectedMargin)}</span>
+          <span className="sub num">{f.expectedMarginPct.toFixed(0)}%</span>
         </div>
-        <div className="money-cell">
-          <span className="k">עמלה צפויה</span>
-          <span className="v num">{fmt(expectedCommission)}</span>
-        </div>
-        <div className={`money-cell ${commissionGap < 0 ? "warn" : ""}`}>
-          <span className="k">עמלה בפועל</span>
-          <span className="v num">{actualCommission > 0 ? fmt(actualCommission) : "—"}</span>
-          {commissionGap !== 0 && (
-            <span className="sub num">
-              {commissionGap > 0 ? "+" : ""}{fmt(commissionGap)} מהצפוי
-            </span>
-          )}
-        </div>
+
+        {f.settled ? (
+          <>
+            <div className="money-cell">
+              <span className="k">עלות בפועל</span>
+              <span className="v num">{shekels(f.actualSupplierCost as number)}</span>
+            </div>
+            <div className={`money-cell ${(f.marginGap ?? 0) < 0 ? "warn" : "good"}`}>
+              <span className="k">רווח בפועל</span>
+              <span className="v num">{shekels(f.actualMargin as number)}</span>
+              <span className="sub num">
+                {(f.actualMarginPct as number).toFixed(0)}%
+                {f.marginGap !== 0 && ` · ${f.marginGap! > 0 ? "+" : ""}${shekels(f.marginGap as number)} מהצפוי`}
+              </span>
+            </div>
+          </>
+        ) : (
+          <div className="money-cell">
+            <span className="k">רווח בפועל</span>
+            <span className="v num">—</span>
+            <span className="sub">נסגר אחרי החזרה</span>
+          </div>
+        )}
       </div>
 
       {error && <div className="error" style={{ margin: "0.6rem 0 0" }}>{error}</div>}
@@ -98,9 +108,14 @@ export function MoneyPanel({
         >
           עדכון תשלום
         </button>
-        <button className="btn-quiet" onClick={() => setEditing((v) => !v)}>
-          {editing ? "סגירה" : "עלויות ועמלות"}
+        <button className="btn-quiet" onClick={() => { setEditing((v) => !v); setSettling(false); }}>
+          {editing ? "סגירה" : "מחיר ועלות"}
         </button>
+        {!f.settled && (
+          <button className="btn-quiet" onClick={() => { setSettling((v) => !v); setEditing(false); }}>
+            סגירת רווח
+          </button>
+        )}
       </div>
       <p className="hint">כשהיתרה מתאפסת, אבן הדרך של גביית היתרה נסגרת לבד.</p>
 
@@ -115,8 +130,6 @@ export function MoneyPanel({
               updateFinanceAction(tripId, {
                 priceToClient: Number(data.get("priceToClient")),
                 supplierCost: Number(data.get("supplierCost")),
-                expectedCommission: Number(data.get("expectedCommission")),
-                actualCommission: Number(data.get("actualCommission")),
               }),
             );
           }}
@@ -126,19 +139,40 @@ export function MoneyPanel({
             <input id="priceToClient" name="priceToClient" type="number" min="0" defaultValue={priceToClient} />
           </div>
           <div className="field">
-            <label htmlFor="supplierCost">עלות ספקים</label>
+            <label htmlFor="supplierCost">עלות ספקים משוערת</label>
             <input id="supplierCost" name="supplierCost" type="number" min="0" defaultValue={supplierCost} />
           </div>
-          <div className="field">
-            <label htmlFor="expectedCommission">עמלה צפויה</label>
-            <input id="expectedCommission" name="expectedCommission" type="number" min="0" defaultValue={expectedCommission} />
-          </div>
-          <div className="field">
-            <label htmlFor="actualCommission">עמלה בפועל</label>
-            <input id="actualCommission" name="actualCommission" type="number" min="0" defaultValue={actualCommission} />
-          </div>
+          <p className="hint" style={{ gridColumn: "1 / -1", marginTop: "-0.3rem" }}>
+            הרווח נגזר מההפרש ואינו שדה נפרד, כדי שלא ייווצרו שני מספרים שמתפצלים.
+          </p>
           <div className="actions" style={{ gridColumn: "1 / -1" }}>
             <button className="btn-primary" type="submit" disabled={pending}>שמירה</button>
+          </div>
+        </form>
+      )}
+
+      {settling && (
+        <form
+          style={{ marginTop: "0.8rem", borderTop: "1px solid var(--border)", paddingTop: "0.8rem" }}
+          onSubmit={(e) => {
+            e.preventDefault();
+            const value = Number(new FormData(e.currentTarget).get("actualSupplierCost"));
+            run(() => settleSupplierCostAction(tripId, value, settleMilestoneId));
+          }}
+        >
+          <div className="field">
+            <label htmlFor="actualSupplierCost">כמה שילמנו לספקים בפועל</label>
+            <input
+              id="actualSupplierCost" name="actualSupplierCost" type="number" min="0"
+              defaultValue={supplierCost} autoFocus
+            />
+            <p className="hint">
+              הסכום שיצא מהכיס אחרי כל החיובים, הביטולים והזיכויים. הרווח בפועל ייגזר ממנו.
+            </p>
+          </div>
+          <div className="actions">
+            <button className="btn-primary" type="submit" disabled={pending}>סגירת הרווח</button>
+            <button type="button" className="btn-quiet" onClick={() => setSettling(false)}>ביטול</button>
           </div>
         </form>
       )}

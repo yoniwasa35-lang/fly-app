@@ -70,6 +70,8 @@ export type TripSnapshot = {
   eventAt: Date | null;
   priceToClient: number;
   amountPaid: number;
+  /** null = העלות בפועל עדיין לא נסגרה. */
+  actualSupplierCost: number | null;
   passportValidityMonths?: number;
   components: ComponentSnapshot[];
   travelers: TravelerSnapshot[];
@@ -396,6 +398,9 @@ export function evaluateAutoComplete(trip: TripSnapshot, rule: AutoCompleteRule 
       );
     case "balance_zero":
       return trip.priceToClient > 0 && trip.amountPaid + 0.001 >= trip.priceToClient;
+    case "supplier_cost_settled":
+      // הרווח בפועל נגזר מהעלות בפועל, ולכן ברגע שהיא הוזנה אין מה לסגור.
+      return trip.actualSupplierCost !== null;
     case "all_travelers_have_passport":
       return trip.travelers.length > 0 && trip.travelers.every((t) => t.hasPassportNumber && !!t.passportExpiry);
     case "flight_checkin_done": {

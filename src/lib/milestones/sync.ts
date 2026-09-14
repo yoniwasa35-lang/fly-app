@@ -42,6 +42,7 @@ export async function loadTripSnapshot(tripId: string): Promise<TripSnapshot> {
     eventAt: trip.eventAt,
     priceToClient: trip.priceToClient,
     amountPaid: trip.amountPaid,
+    actualSupplierCost: trip.actualSupplierCost,
     components: trip.components.map((c) => ({
       id: c.id,
       type: c.type,

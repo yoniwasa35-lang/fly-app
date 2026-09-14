@@ -53,11 +53,15 @@ model Trip {
   bookedAt DateTime @default(now()) // עוגן booking
   status   String   @default("active") // draft | active | traveling | returned | closed
 
-  priceToClient      Float @default(0)
-  supplierCost       Float @default(0)
-  amountPaid         Float @default(0) // נדרש לסגירה אוטומטית של "גביית יתרה" — סעיף 6.3
-  expectedCommission Float @default(0)
-  actualCommission   Float @default(0)
+  priceToClient Float @default(0)
+  amountPaid    Float @default(0) // נדרש לסגירה אוטומטית של "גביית יתרה" — סעיף 6.3
+
+  // הסוכנים מתמחרים מעל עלות הספק ומרוויחים את ההפרש, ולכן הרווח אינו שדה
+  // אלא חישוב. שמירת "עמלה" בנפרד הייתה יוצרת מקור אמת שני שמתפצל מהראשון.
+  // מה שכן משתנה הוא העלות: הספק מוסיף חיוב, רכיב מבוטל, שער מטבע זז —
+  // ולכן יש עלות משוערת בהזמנה ועלות בפועל שנסגרת אחרי החזרה (סעיף 7א).
+  supplierCost       Float  @default(0) // משוערת, בעת ההזמנה
+  actualSupplierCost Float? // בפועל. null = עדיין לא נסגר
 
   source String? // המלצה, פרסום, לקוח חוזר
   notes  String?

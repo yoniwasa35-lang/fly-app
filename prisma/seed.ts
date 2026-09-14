@@ -40,6 +40,7 @@ async function main() {
       { firstNameLatin: "MAYA", lastNameLatin: "LEVI", displayNameHe: "מאיה לוי", passportNumber: "87654321", passportExpiry: "2030-11-20" },
     ],
     priceToClient: 14200,
+    supplierCost: 11100,
     amountPaid: 4000,
     source: "המלצה",
   });
@@ -61,6 +62,7 @@ async function main() {
       { firstNameLatin: "DANA", lastNameLatin: "COHEN", displayNameHe: "דנה כהן", passportNumber: "55512345", passportExpiry: "2026-12-01", isLead: true },
     ],
     priceToClient: 9800,
+    supplierCost: 7900,
     amountPaid: 2500,
     source: "פרסום",
   });
@@ -99,6 +101,7 @@ async function main() {
       { firstNameLatin: "SARIT", lastNameLatin: "MIZRAHI", displayNameHe: "שרית מזרחי", passportNumber: "33344456", passportExpiry: "2032-03-09" },
     ],
     priceToClient: 6400,
+    supplierCost: 5050,
     amountPaid: 6400,
     source: "לקוח חוזר",
   });
