@@ -178,3 +178,31 @@ describe("שינוי רכיבים", () => {
     expect(plan.create.map((c) => c.key)).toContain("checkin_inbound_reminder");
   });
 });
+
+describe("מה לעולם לא מקובץ — סעיף 2", () => {
+  it("מועד ביטול חינם שכבר עבר נשאר גלוי ולא נדחס לקבוצה", () => {
+    const trip = makeTrip({ bookedAt: zonedToUtc("2026-07-27T08:00", "Asia/Jerusalem") });
+    trip.components[2].freeCancelUntil = zonedToUtc("2026-07-20T23:59", "Europe/Athens");
+    const plan = reconcileMilestones({
+      existing: [],
+      desired: buildDesiredMilestones(trip).milestones,
+      now: trip.bookedAt,
+    });
+    const cancel = plan.create.find((c) => c.key === "component_free_cancel:c_hotel")!;
+    expect(cancel.bornLate).toBe(false);
+  });
+});
+
+describe("איחור של רגע אינו איחור", () => {
+  it("אבן דרך שנולדת בדיוק עכשיו לא מסומנת כנולדה באיחור", () => {
+    const bookedAt = zonedToUtc("2026-03-01T13:20", "Asia/Jerusalem");
+    const trip = makeTrip({ bookedAt });
+    const plan = reconcileMilestones({
+      existing: [],
+      desired: buildDesiredMilestones(trip).milestones,
+      // התיק נשמר, ושתי שניות אחר כך רץ הסנכרון.
+      now: new Date(bookedAt.getTime() + 2000),
+    });
+    expect(plan.create.find((c) => c.key === "issue_confirmation")!.bornLate).toBe(false);
+  });
+});

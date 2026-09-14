@@ -38,6 +38,13 @@ export type ReconcilePlan = {
 
 const isTerminal = (s: MilestoneState) => s === "done" || s === "skipped";
 
+/**
+ * אבן דרך נחשבת "נולדה באיחור" רק אם פיגרה באמת בזמן שנוצרה. תיק שנפתח
+ * ב-13:20 מייצר אבן דרך שמועדה 13:20, וכמה שניות של הפרש אינן איחור —
+ * הן פשוט הפעולה שצריך לעשות עכשיו.
+ */
+const BORN_LATE_GRACE_MINUTES = 60;
+
 export function reconcileMilestones(params: {
   existing: ExistingMilestone[];
   desired: DesiredMilestone[];
@@ -54,9 +61,10 @@ export function reconcileMilestones(params: {
     if (!current) {
       // סעיף 14 — תיק שנוצר מאוחר. אבן דרך שנולדת כבר אחרי מועדה מסומנת ככזו,
       // כדי שמסך היום יוכל לקבץ אותן במקום להציף 12 שורות אדומות.
+      const lateBy = now.getTime() - d.dueAt.getTime();
       plan.create.push({
         ...d,
-        bornLate: !isNeverCollapsed(d.key) && d.dueAt.getTime() < now.getTime(),
+        bornLate: !isNeverCollapsed(d.key) && lateBy > BORN_LATE_GRACE_MINUTES * 60_000,
       });
       continue;
     }

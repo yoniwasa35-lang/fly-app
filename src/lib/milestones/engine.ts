@@ -185,10 +185,12 @@ export function buildDesiredMilestones(trip: TripSnapshot): BuildResult {
 
     // אבני דרך ברזולוציית ימים מוצמדות לשעת עבודה, אחרת התור מתמלא
     // בפריטים ב-23:40 רק כי כך יצא מחישוב ההיסט.
-    if (isDayGrained(entry.offset)) {
-      dueAt = snapToTimeOfDay(dueAt, entry.at ?? template.default_time_of_day);
-    } else if (entry.at) {
-      dueAt = snapToTimeOfDay(dueAt, entry.at);
+    if (isDayGrained(entry.offset) || entry.at) {
+      const snapped = snapToTimeOfDay(dueAt, entry.at ?? template.default_time_of_day);
+      // ההצמדה לא רשאית להקדים את העוגן עצמו כשההיסט אינו שלילי: תיק שנפתח
+      // ב-13:00 לא אמור להיוולד עם "הפקת אסמכתא" שעברה את מועדה ב-09:00,
+      // ו"ברוכים השבים" לא נשלח לפני שהמטוס נחת.
+      dueAt = offsetMinutes >= 0 && snapped.getTime() < anchor.at.getTime() ? anchor.at : snapped;
     }
 
     out.push({
@@ -291,7 +293,7 @@ function passportMilestones(trip: TripSnapshot, baseSort: number): DesiredMilest
     if (t.passportExpiry.getTime() >= required.getTime()) return;
     out.push({
       key: `passport_expiry:${t.id}`,
-      title: `תוקף דרכון לא מספיק — ${t.name}`,
+      title: `תוקף דרכון קצר מדי — ${t.name}`,
       audience: "agent",
       anchor: "booking",
       anchorRef: t.id,
@@ -310,15 +312,21 @@ function passportMilestones(trip: TripSnapshot, baseSort: number): DesiredMilest
   });
 
   if (out.length > 0) {
-    // הודעת ההקשר נשמרת בכותרת כדי שהסוכן יראה את הדרישה בלי לפתוח כלום.
-    for (const m of out) m.title += ` (נדרש תוקף עד ${utcToZoned(required, DISPLAY_TZ).slice(0, 10)}, ${months} חודשים מהחזרה)`;
+    // הדרישה נשמרת בכותרת כדי שהסוכן יראה אותה בלי לפתוח כלום, אבל קצר:
+    // כותרת בת שלוש שורות הורסת את הצפיפות של מסך היום.
+    const until = utcToZoned(required, DISPLAY_TZ).slice(0, 10).split("-").reverse().join("/");
+    for (const m of out) m.title += `, נדרש עד ${until}`;
   }
   return out;
 }
 
-/** אבני דרך שאינן נמחקות אוטומטית גם כשהן נעלמות מהתבנית. */
+/**
+ * אבני דרך שלעולם לא מקובצות לקבוצת "נולדו באיחור" של סעיף 14.
+ * שתי הקטגוריות כאן הן בדיוק הכשלים הכספיים והמשפטיים מסעיף 2:
+ * דרכון שלא יעבור בגבול, ומועד ביטול חינם שכבר עבר. אלה חייבים להיות גלויים.
+ */
 export function isNeverCollapsed(key: string): boolean {
-  return key.startsWith("passport_expiry:");
+  return key.startsWith("passport_expiry:") || key.startsWith("component_free_cancel:");
 }
 
 // ---------------------------------------------------------------------------

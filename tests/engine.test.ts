@@ -144,6 +144,7 @@ describe("בדיקת תוקף דרכון — סעיף 5", () => {
     const m = keys.get("passport_expiry:t_1");
     expect(m).toBeDefined();
     expect(m!.title).toContain("דנה כהן");
+    expect(m!.title).toContain("17/02/2027");
     expect(m!.dueAt.getTime()).toBe(trip.bookedAt.getTime());
     expect(m!.notSkippable).toBe(true);
   });
@@ -285,5 +286,26 @@ describe("עוגנים", () => {
   it("snapToTimeOfDay מצמיד לשעה מקומית ולא ל-UTC", () => {
     const snapped = snapToTimeOfDay(new Date("2026-08-10T22:30:00Z"), "09:00", "Asia/Jerusalem");
     expect(utcToZoned(snapped, "Asia/Jerusalem")).toBe("2026-08-11T09:00");
+  });
+});
+
+describe("הצמדה לשעת עבודה לא יוצרת איחור מלאכותי", () => {
+  it("תיק שנפתח אחרי 09:00 לא נולד עם אסמכתא שעברה את מועדה", () => {
+    const bookedAt = zonedToUtc("2026-03-01T13:20", "Asia/Jerusalem");
+    const keys = byKey(buildDesiredMilestones(makeTrip({ bookedAt })).milestones);
+    expect(keys.get("issue_confirmation")!.dueAt.getTime()).toBe(bookedAt.getTime());
+  });
+
+  it("תיק שנפתח לפני 09:00 מקבל את שעת העבודה", () => {
+    const bookedAt = zonedToUtc("2026-03-01T06:10", "Asia/Jerusalem");
+    const keys = byKey(buildDesiredMilestones(makeTrip({ bookedAt })).milestones);
+    expect(utcToZoned(keys.get("issue_confirmation")!.dueAt, "Asia/Jerusalem")).toBe("2026-03-01T09:00");
+  });
+
+  it("ברוכים השבים לא נשלחים לפני שהמטוס נחת", () => {
+    // נחיתה 21:40 בשעון אתונה; הצמדה ל-18:00 הייתה מקדימה את הנחיתה.
+    const keys = byKey(buildDesiredMilestones(makeTrip()).milestones);
+    const welcome = keys.get("welcome_back")!.dueAt;
+    expect(welcome.getTime()).toBe(makeTrip().returnAt.getTime());
   });
 });
