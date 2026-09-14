@@ -94,6 +94,7 @@ model Trip {
   travelers  Traveler[]
   components Component[]
   milestones Milestone[]
+  documents  TripDocument[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -253,4 +254,33 @@ model LoginAttempt {
   updatedAt    DateTime  @updatedAt
 
   @@index([updatedAt])
+}
+
+/**
+ * צ׳ק-ליסט המסמכים של הנסיעה.
+ *
+ * זו לא ספריית קבצים — הקבצים עצמם עוד לא נשמרים בשום מקום, ולכן אין
+ * כאן שדה קובץ שהיה מתחזה לתמיכה שאינה קיימת. מה שכן יש הוא התשובה
+ * לשאלה היחידה שהסוכן שואל לפני יציאה: "מה כבר שלחנו ומה עוד לא".
+ *
+ * המצבים מסודרים בשרשרת: חסר → התקבל מהספק → נשלח ללקוח. רק "נשלח"
+ * נחשב מוכן, כי מסמך שיושב אצל הסוכן לא עוזר למי שעומד בשדה.
+ */
+model TripDocument {
+  id     String @id @default(cuid())
+  tripId String
+  trip   Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  kind  String // flight_tickets | hotel_voucher | transfers | activities | insurance
+  state String @default("missing") // missing | received | sent
+
+  note       String?
+  receivedAt DateTime?
+  sentAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tripId, kind])
+  @@index([tripId])
 }

@@ -15,7 +15,12 @@ import {
   settleSupplierCost,
   updateFinance,
 } from "@/lib/trips/service";
-import { prepareMessage } from "@/lib/messages/prepare";
+import { prepareMessage, prepareTripMessage } from "@/lib/messages/prepare";
+import {
+  isDocumentKind,
+  isDocumentState,
+  setDocumentState,
+} from "@/lib/trips/documents";
 import {
   addTraveler,
   removeTraveler,
@@ -145,5 +150,33 @@ export async function revealPassportAction(travelerId: string): Promise<RevealRe
     return { ok: true, value: await revealPassport(travelerId) };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "שגיאה" };
+  }
+}
+
+/* ---------------------------- מסמכי הנסיעה ---------------------------- */
+
+export async function setDocumentStateAction(
+  tripId: string,
+  kind: string,
+  state: string,
+): Promise<ActionResult> {
+  if (!isDocumentKind(kind) || !isDocumentState(state)) {
+    return { ok: false, error: "סוג מסמך או מצב לא מוכר" };
+  }
+  return guard(() => setDocumentState(tripId, kind, state));
+}
+
+/**
+ * הודעה שהסוכן יוזם מכרטיס הנסיעה, בלי אבן דרך.
+ * "מה תרצי לשלוח?" → נוסח מוכן → וואטסאפ.
+ */
+export async function prepareTripMessageAction(
+  tripId: string,
+  templateKey: string,
+): Promise<PrepareMessageResult> {
+  try {
+    return { ok: true, message: await prepareTripMessage(tripId, templateKey) };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "הכנת ההודעה נכשלה" };
   }
 }

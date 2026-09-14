@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import {
@@ -6,7 +5,6 @@ import {
   COMPONENT_STATUS_HE,
   COMPONENT_TYPE_HE,
   MILESTONE_STATE_HE,
-  TRIP_STATUS_HE,
   isComponentResolved,
   isOpenState,
   type ComponentStatus,
@@ -15,24 +13,42 @@ import {
 } from "@/lib/domain/types";
 import { buildDesiredMilestones, passportValidUntilRequirement } from "@/lib/milestones/engine";
 import { loadTripSnapshot, parseBlockers } from "@/lib/milestones/sync";
-import { hostAgencyName } from "@/lib/trips/finance";
+import { hostAgencyName, shekels } from "@/lib/trips/finance";
 import { airportLabel, allAirports } from "@/lib/time/airports";
 import { knownAirlines } from "@/lib/airlines/checkin";
 import { DISPLAY_TZ, formatAbsoluteHe, formatRelativeHe, utcToZoned } from "@/lib/time/zones";
 import { publicTripUrl } from "@/lib/trips/publicToken";
 import { whatsAppLink } from "@/lib/messages/whatsapp";
+import { summarizeTrip, PAYMENT_STATUS_HE } from "@/lib/trips/summary";
+import { describeParty } from "@/lib/clients/party";
+import { getDocuments } from "@/lib/trips/documents";
+import { templateSchedules } from "@/lib/messages/schedule";
+import { toItem } from "@/lib/queue/today";
+import { Icon } from "@/components/Icon";
 import { ClientLinkPanel } from "./ClientLinkPanel";
 import { ComponentsPanel } from "./ComponentsPanel";
 import { TravelersPanel } from "./TravelersPanel";
 import { TripSettingsPanel } from "./TripSettingsPanel";
 import { DepartureEditor } from "./DepartureEditor";
-import { TripCard, TripJump } from "./TripCard";
-import { summarizeTrip } from "@/lib/trips/summary";
-import { describeParty } from "@/lib/clients/party";
-import { toItem } from "@/lib/queue/today";
 import { MoneyPanel } from "./MoneyPanel";
+import { DocumentsPanel } from "./DocumentsPanel";
+import { NextAction } from "./TripCard";
+import { TripSheets, type Tile } from "./TripSheets";
 
 export const dynamic = "force-dynamic";
+
+/** הפס העליון: נקודה, טקסט אחד, וזהו. */
+function statusPill(status: string, departureAt: Date, now: Date) {
+  if (status === "traveling") return { tone: "good", text: "בטיול עכשיו" };
+  if (status === "returned" || status === "closed") return { tone: "muted", text: "הנסיעה הסתיימה" };
+
+  const days = Math.ceil((departureAt.getTime() - now.getTime()) / 86_400_000);
+  if (days < 0) return { tone: "muted", text: "תאריך היציאה עבר" };
+  if (days === 0) return { tone: "warn", text: "יוצאים היום" };
+  if (days === 1) return { tone: "warn", text: "יוצאים מחר" };
+  if (days <= 3) return { tone: "warn", text: `יוצאים בעוד ${days} ימים` };
+  return { tone: "good", text: `יוצאים בעוד ${days} ימים` };
+}
 
 export default async function TripPage({
   params, searchParams,
@@ -55,7 +71,7 @@ export default async function TripPage({
   if (!trip) notFound();
 
   const now = new Date();
-  const snapshot = await loadTripSnapshot(trip.id);
+  const [snapshot, documents] = await Promise.all([loadTripSnapshot(trip.id), getDocuments(trip.id)]);
   const { pendingAnchors } = buildDesiredMilestones(snapshot);
 
   const openMilestones = trip.milestones.filter((m) => isOpenState(m.state));
@@ -63,21 +79,21 @@ export default async function TripPage({
   const blocked = openMilestones.filter((m) => m.state === "blocked");
   const unresolvedComponents = trip.components.filter((c) => !isComponentResolved(c.status));
 
-  const departure = formatRelativeHe(trip.departureAt, now);
   const summary = summarizeTrip(trip);
   const party = describeParty(trip.client);
+  const pill = statusPill(trip.status, trip.departureAt, now);
 
   /*
-   * הפעולה הבאה: אבן הדרך הפתוחה שמועדה הקרוב ביותר. חסומות יוצאות
-   * מהמשחק — אי אפשר לפעול עליהן, והצגתן כ"הפעולה הבאה" הייתה שולחת את
-   * הסוכן לקיר. נדחות שמועדן טרם הגיע יוצאות מאותה סיבה.
+   * הפעולה הבאה: הפתוחה שמועדה הקרוב ביותר. חסומות יוצאות מהמשחק — אי
+   * אפשר לפעול עליהן, והצגתן שם הייתה שולחת את הסוכן לקיר. נדחות שמועדן
+   * טרם הגיע יוצאות מאותה סיבה.
    */
-  const actionable = openMilestones
-    .filter((m) => m.state !== "blocked")
-    .filter((m) => !m.snoozedUntil || m.snoozedUntil <= now)
-    .sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime());
+  const nextMilestone =
+    openMilestones
+      .filter((m) => m.state !== "blocked")
+      .filter((m) => !m.snoozedUntil || m.snoozedUntil <= now)
+      .sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime())[0] ?? null;
 
-  const nextMilestone = actionable[0] ?? null;
   const next = nextMilestone
     ? toItem({
         id: nextMilestone.id,
@@ -90,240 +106,401 @@ export default async function TripPage({
         bornLate: nextMilestone.bornLate,
         messageTemplateKey: nextMilestone.messageTemplateKey,
         trip: {
-          id: trip.id,
-          code: trip.code,
-          destination: trip.destination,
+          id: trip.id, code: trip.code, destination: trip.destination,
           departureAt: trip.departureAt,
           client: { name: trip.client.name, phone: trip.client.phone },
         },
       })
     : null;
 
-  return (
-    <>
-      <header className="topbar">
-        <h1>
-          {trip.client.name} · {trip.destination}
-          <span className="sub">
-            תיק <span className="num">{trip.code}</span> · {TRIP_STATUS_HE[trip.status as keyof typeof TRIP_STATUS_HE]} ·
-            טיסה {departure.text}
-          </span>
-        </h1>
-        <Link className="btn" href={`/trips/${trip.id}/duplicate`}>שכפול</Link>
-      </header>
+  const outboundFlight = summary.outbound;
+  const nextContext = outboundFlight
+    ? `${outboundFlight.airlineCode} ${outboundFlight.flightNumber}`.trim()
+    : null;
 
+  /* ------------------------------ האריחים ------------------------------ */
+
+  const flightCount = [summary.outbound, summary.inbound].filter(Boolean).length;
+
+  /*
+   * הנקודה הכתומה שמורה ל"מתקרב ולא מוכן", ולא ל"עוד לא הוזן". תיק
+   * שנפתח היום ועוד אין בו מלון הוא מצב תקין לגמרי; אותו תיק שלושה ימים
+   * לפני היציאה הוא כבר משהו אחר. בלי ההבחנה הזו כל אריח נצבע כתום
+   * ביום הראשון, וסעיף 4 מתרוקן מתוכן: כשהכל מתריע, שום דבר לא מתריע.
+   */
+  const daysToDeparture = Math.ceil((trip.departureAt.getTime() - now.getTime()) / 86_400_000);
+  const closingIn = daysToDeparture <= 14 && trip.status !== "returned" && trip.status !== "closed";
+
+  const tiles: Tile[] = [
+    {
+      key: "flights", icon: "trips", label: "טיסות",
+      value: flightCount === 2 ? "הלוך וחזור" : flightCount === 1 ? "טיסה אחת" : "לא הוזנו",
+      attention: closingIn && flightCount === 0,
+    },
+    {
+      key: "hotel", icon: "hotel", label: "מלון",
+      value: summary.stay?.name ?? "לא הוזן",
+      // נסיעת טיסה־בלבד היא מוצר לגיטימי. היעדר מלון אינו תקלה.
+      attention: false,
+    },
+    {
+      key: "travelers", icon: "clients", label: "נוסעים",
+      value: trip.travelers.length > 0 ? `${trip.travelers.length} רשומים` : party,
+      attention: closingIn && trip.travelers.length === 0,
+    },
+    {
+      key: "money", icon: "wallet", label: "תשלומים",
+      value:
+        summary.money.balance > 0
+          ? `נותר ${shekels(summary.money.balance)}`
+          : PAYMENT_STATUS_HE[summary.money.status],
+      attention: summary.money.balance > 0,
+    },
+    {
+      key: "documents", icon: "document", label: "מסמכים",
+      value: `${documents.ready} מתוך ${documents.total} מוכנים`,
+      attention: closingIn && documents.ready < documents.total,
+    },
+    {
+      key: "tasks", icon: "tasks", label: "משימות",
+      value: openMilestones.length > 0 ? `${openMilestones.length} פתוחות` : "הכול סגור",
+      attention: overdue.length > 0,
+    },
+  ];
+
+  /* נוסחי ההודעות שהסוכן יכול ליזום — רק אלה שפונים ללקוח. */
+  const messageOptions = [...templateSchedules().entries()]
+    .filter(([, s]) => s.toClient)
+    .map(([key, s]) => ({ key, label: s.title }));
+
+  const airports = allAirports().map((a) => ({ iata: a.iata, label: `${a.he} (${a.iata})` }));
+  const airlines = knownAirlines()
+    .map((a) => ({ code: a.code, label: `${a.name ?? a.code} (${a.code})` }))
+    .sort((a, b) => a.label.localeCompare(b.label, "he"));
+
+  const url = publicTripUrl(trip.publicToken);
+  const wa = url ? whatsAppLink(trip.client.phone, `היי, הנה עמוד הנסיעה שלכם ל${trip.destination}: ${url}`) : null;
+
+  /* ------------------------------ החלונות ------------------------------ */
+
+  const flightsSheet = (
+    <>
+      {flightCount === 0 ? (
+        <p className="hint">עוד לא הוזנו טיסות. אפשר להוסיף אותן מ"פרטי ההזמנה" בתפריט.</p>
+      ) : (
+        [summary.outbound, summary.inbound].map((f, i) =>
+          f ? (
+            <article key={i} className="leg">
+              <header className="leg-head">
+                <strong>{f.direction === "outbound" ? "הלוך" : "חזור"}</strong>
+                <span className="c-muted">
+                  {formatAbsoluteHe(
+                    new Date(`${f.date}T12:00:00Z`),
+                    { withTime: false },
+                  )}
+                </span>
+              </header>
+
+              <div className="leg-route">
+                <div>
+                  <span className="leg-time num">{f.time}</span>
+                  <span className="leg-place ltr">{f.fromAirport}</span>
+                </div>
+                <span className="leg-arrow">
+                  <Icon name="arrow" />
+                </span>
+                <div>
+                  {f.arrivesTime ? (
+                    <span className="leg-time num">{f.arrivesTime}</span>
+                  ) : (
+                    <span className="leg-time c-time-unknown" aria-label="שעת נחיתה לא ידועה">··</span>
+                  )}
+                  <span className="leg-place ltr">{f.toAirport}</span>
+                </div>
+              </div>
+
+              <dl className="c-details">
+                <dt>טיסה</dt>
+                <dd className="ltr">{f.airlineCode} {f.flightNumber}</dd>
+                {f.baggage && (
+                  <>
+                    <dt>כבודה</dt>
+                    <dd>{f.baggage}</dd>
+                  </>
+                )}
+                {f.checkinDone && (
+                  <>
+                    <dt>צ׳ק-אין</dt>
+                    <dd className="c-done">
+                      <Icon name="check" />
+                      <span>בוצע</span>
+                    </dd>
+                  </>
+                )}
+              </dl>
+            </article>
+          ) : null,
+        )
+      )}
+    </>
+  );
+
+  const hotelComponent = trip.components.find((c) => c.type === "hotel" && c.status !== "cancelled");
+
+  const hotelSheet = hotelComponent ? (
+    <>
+      <h3 className="leg-title">{hotelComponent.supplier || hotelComponent.description || "מלון"}</h3>
+      <dl className="c-details">
+        <dt>תאריכים</dt>
+        <dd>
+          <span className="num">{formatAbsoluteHe(trip.departureAt, { withTime: false })}</span>
+          {" – "}
+          <span className="num">{formatAbsoluteHe(trip.returnAt, { withTime: false })}</span> ·{" "}
+          {summary.nights} לילות
+        </dd>
+        {hotelComponent.description && hotelComponent.supplier && (
+          <>
+            <dt>פרטים</dt>
+            <dd>{hotelComponent.description}</dd>
+          </>
+        )}
+        {hotelComponent.reference && (
+          <>
+            <dt>מספר הזמנה</dt>
+            <dd className="num">{hotelComponent.reference}</dd>
+          </>
+        )}
+        <dt>סטטוס</dt>
+        <dd>{COMPONENT_STATUS_HE[hotelComponent.status as ComponentStatus] ?? hotelComponent.status}</dd>
+      </dl>
+      <p className="hint">
+        סוג חדר, בסיס אירוח ושעות צ׳ק-אין יתווספו כשדות נפרדים בשלב הבא. כרגע אפשר
+        לכתוב אותם בשדה הפרטים.
+      </p>
+    </>
+  ) : (
+    <p className="hint">עוד לא הוזן מלון. אפשר להוסיף אותו מ"פרטי ההזמנה" בתפריט.</p>
+  );
+
+  const tasksSheet = (
+    <>
+      <ul className="timeline">
+        {trip.milestones.map((m) => {
+          const state = m.state as MilestoneState;
+          const rel = formatRelativeHe(m.dueAt, now);
+          const blockers = parseBlockers(m.blockedByJson);
+          const terminal = state === "done" || state === "skipped";
+          return (
+            <li key={m.id}>
+              <span className={`dot s-${state}`} aria-hidden />
+              <span className={`t ${terminal ? "muted" : ""}`}>{m.title}</span>
+              <span className="d">
+                <span className="num">{formatAbsoluteHe(m.dueAt, { withTime: true })}</span>
+                {!terminal && <> · {rel.text}</>}
+                {" · "}
+                <span className="tag">{MILESTONE_STATE_HE[state]}</span>{" "}
+                <span className="tag">{AUDIENCE_HE[m.audience as keyof typeof AUDIENCE_HE]}</span>
+                {m.snoozedUntil && m.snoozedUntil > now && (
+                  <> · נדחה עד <span className="num">{formatAbsoluteHe(m.snoozedUntil, { withTime: false })}</span>: {m.snoozeReason}</>
+                )}
+                {m.skipReason && <> · ויתור: {m.skipReason}</>}
+                {blockers.length > 0 && <> · חסום: {blockers.map((b) => b.label).join("; ")}</>}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="hint" style={{ marginTop: "var(--sp-4)" }}>
+        אפשר לסמן ולטפל בכל אחת ממסך "היום" או ממסך "משימות".
+      </p>
+    </>
+  );
+
+  const hero = (
+    <>
+      <h1>{trip.client.name}</h1>
+      <p className="trip-hero-sub">
+        {trip.destination} ·{" "}
+        <span className="num">{formatAbsoluteHe(trip.departureAt, { withTime: false })}</span>
+        {" – "}
+        <span className="num">{formatAbsoluteHe(trip.returnAt, { withTime: false })}</span>
+      </p>
+      <span className={`status-pill is-${pill.tone}`}>{pill.text}</span>
+    </>
+  );
+
+  const body = (
+    <>
       {created && (
         <div className="notice">
-          התיק נפתח. אבני הדרך נוצרו ומופיעות למטה.
-          {copied && <> {copied} נוסעים הועתקו מהתיק הקודם — כדאי לוודא שהדרכונים עדיין בתוקף.</>}
+          <Icon name="check" />
+          <span>
+            הנסיעה נפתחה והמשימות נוצרו.
+            {copied && copied !== "0" && <> {copied} נוסעים הועתקו — כדאי לוודא שהדרכונים בתוקף.</>}
+          </span>
         </div>
       )}
 
-      <TripCard
-        summary={summary}
-        next={next}
-        now={now}
-        destination={trip.destination}
-        departureAt={trip.departureAt}
-        returnAt={trip.returnAt}
-        party={party}
-        openCount={openMilestones.length}
-      />
+      <NextAction next={next} now={now} context={nextContext} />
 
-      {/*
-        סעיף 8.3 — בעיה פתוחה מוצגת כהתראה מפורשת בטקסט, לא כאייקון.
-      */}
-      {(overdue.length > 0 || blocked.length > 0) && (
-        <div className="error">
-          {overdue.length > 0 && (
-            <div>
-              {overdue.length === 1
-                ? `אבן דרך אחת עברה את מועדה: ${overdue[0].title}.`
-                : `${overdue.length} אבני דרך עברו את מועדן, המוקדמת שבהן: ${overdue[0].title}.`}
-            </div>
-          )}
-          {blocked.length > 0 && (
-            <div style={{ marginTop: overdue.length ? "0.35rem" : 0 }}>
-              {blocked.length === 1 ? "אבן דרך אחת חסומה" : `${blocked.length} אבני דרך חסומות`}
-              {unresolvedComponents.length > 0 && (
-                <> כי {unresolvedComponents.length === 1 ? "רכיב אחד עדיין לא אושר" : `${unresolvedComponents.length} רכיבים עדיין לא אושרו`}: {unresolvedComponents.map((c) => c.description || c.supplier || COMPONENT_TYPE_HE[c.type as ComponentType]).join(", ")}</>
-              )}.
-            </div>
-          )}
-        </div>
+      {/* סעיף 8.3 — בעיה פתוחה מוצגת כהתראה מפורשת בטקסט, לא כאייקון. */}
+      {(overdue.length > 1 || blocked.length > 0 || pendingAnchors.length > 0) && (
+        <details className="collapse section trip-alerts">
+          <summary>
+            {overdue.length > 1 && <>{overdue.length} משימות עברו את מועדן</>}
+            {overdue.length > 1 && blocked.length > 0 && <> · </>}
+            {blocked.length > 0 && <>{blocked.length} חסומות</>}
+            {(overdue.length > 1 || blocked.length > 0) && pendingAnchors.length > 0 && <> · </>}
+            {pendingAnchors.length > 0 && <>{pendingAnchors.length} ממתינות למידע</>}
+          </summary>
+          <div className="card">
+            {blocked.length > 0 && unresolvedComponents.length > 0 && (
+              <p>
+                החסימה נובעת מ{unresolvedComponents.length === 1 ? "רכיב שעדיין לא אושר" : `${unresolvedComponents.length} רכיבים שעדיין לא אושרו`}:{" "}
+                {unresolvedComponents
+                  .map((c) => c.description || c.supplier || COMPONENT_TYPE_HE[c.type as ComponentType])
+                  .join(", ")}
+                .
+              </p>
+            )}
+            {pendingAnchors.length > 0 && (
+              <p className="hint">
+                {pendingAnchors.map((p) => `${p.title} (${p.reason})`).join(" · ")}. הן ייווצרו לבד
+                ברגע שהמידע יוזן.
+              </p>
+            )}
+          </div>
+        </details>
       )}
+    </>
+  );
 
-      {pendingAnchors.length > 0 && (
-        <div className="notice">
-          {pendingAnchors.length} אבני דרך ממתינות למידע חסר:{" "}
-          {pendingAnchors.map((p) => `${p.title} (${p.reason})`).join(" · ")}. הן ייווצרו לבד ברגע שהמידע יוזן.
-        </div>
-      )}
-
-      <TripJump
-        links={[
-          { id: "milestones", label: "משימות" },
-          { id: "components", label: "פרטי נסיעה" },
-          { id: "travelers", label: "נוסעים" },
-          { id: "money", label: "תשלומים" },
-          { id: "link", label: "קישור ללקוח" },
-        ]}
-      />
-
-      {/* ------------------------------ ציר אבני הדרך ------------------------------ */}
-      <details className="collapse section" id="milestones">
-        <summary>
-          משימות התיק
-          <span className="hint">{openMilestones.length} פתוחות מתוך {trip.milestones.length}</span>
-        </summary>
-        <div className="card">
-        <ul className="timeline">
-          {trip.milestones.map((m) => {
-            const state = m.state as MilestoneState;
-            const rel = formatRelativeHe(m.dueAt, now);
-            const blockers = parseBlockers(m.blockedByJson);
-            const terminal = state === "done" || state === "skipped";
-            return (
-              <li key={m.id}>
-                <span className={`dot s-${state}`} aria-hidden />
-                <span className={`t ${terminal ? "muted" : ""}`}>{m.title}</span>
-                <span className="d">
-                  <span className="num">{formatAbsoluteHe(m.dueAt, { withTime: true })}</span>
-                  {!terminal && <> · {rel.text}</>}
-                  {" · "}
-                  <span className={`tag tag-${state === "done" ? "done" : state === "overdue" ? "overdue" : state === "blocked" ? "blocked" : m.audience === "agent" ? "agent" : "client"}`}>
-                    {MILESTONE_STATE_HE[state]}
-                  </span>
-                  {" "}
-                  <span className="tag">{AUDIENCE_HE[m.audience as keyof typeof AUDIENCE_HE]}</span>
-                  {m.snoozedUntil && m.snoozedUntil > now && (
-                    <> · נדחה עד <span className="num">{formatAbsoluteHe(m.snoozedUntil, { withTime: false })}</span>: {m.snoozeReason}</>
-                  )}
-                  {m.skipReason && <> · ויתור: {m.skipReason}</>}
-                  {blockers.length > 0 && <> · חסום: {blockers.map((b) => b.label).join("; ")}</>}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-        </div>
-      </details>
-
-      {/* -------------------------------- רכיבים --------------------------------- */}
-      <details className="collapse section" id="components">
-        <summary>
-          פרטי נסיעה
-          <span className="hint">טיסות, מלון, העברות — {trip.components.length} רכיבים</span>
-        </summary>
-        <ComponentsPanel
-          tripId={trip.id}
-          airports={allAirports().map((a) => ({ iata: a.iata, label: `${a.he} (${a.iata})` }))}
-          airlines={knownAirlines()
-            .map((a) => ({ code: a.code, label: `${a.name ?? a.code} (${a.code})` }))
-            .sort((a, b) => a.label.localeCompare(b.label, "he"))}
-          tripDates={{
-            departureDate: trip.departureLocal.slice(0, 10),
-            departureTime: trip.departureLocal.slice(11, 16),
-            returnDate: trip.returnLocal.slice(0, 10),
-            returnTime: trip.returnLocal.slice(11, 16),
-            departureAirport: trip.departureAirport,
-            returnAirport: trip.returnAirport,
-          }}
-          components={trip.components.map((c) => ({
-            id: c.id,
-            type: COMPONENT_TYPE_HE[c.type as ComponentType] ?? c.type,
-            rawType: c.type,
-            supplier: c.supplier,
-            description: c.description,
-            reference: c.reference,
-            status: c.status as ComponentStatus,
-            statusHe: COMPONENT_STATUS_HE[c.status as ComponentStatus] ?? c.status,
-            freeCancelUntil: c.freeCancelUntil ? formatAbsoluteHe(c.freeCancelUntil, { withTime: false }) : null,
-            supplierPaymentDue: c.supplierPaymentDue ? formatAbsoluteHe(c.supplierPaymentDue, { withTime: false }) : null,
-            freeCancelInput: c.freeCancelUntil ? utcToZoned(c.freeCancelUntil, DISPLAY_TZ).slice(0, 10) : null,
-            supplierPaymentInput: c.supplierPaymentDue ? utcToZoned(c.supplierPaymentDue, DISPLAY_TZ).slice(0, 10) : null,
-            isFlight: !!c.flight,
-            flightDefaults: c.type === "flight"
-              ? {
-                  componentId: c.id,
-                  direction: (c.flight?.direction as "outbound" | "inbound") ?? "outbound",
-                  airlineCode: c.flight?.airlineCode ?? "",
-                  flightNumber: c.flight?.flightNumber ?? "",
-                  departsAirport: c.flight?.departsAirport ?? trip.departureAirport,
-                  departsDate: c.flight?.departsAtLocal?.slice(0, 10) ?? trip.departureLocal.slice(0, 10),
-                  departsTime: c.flight?.departsAtLocal?.slice(11, 16) ?? trip.departureLocal.slice(11, 16),
-                  arrivesAirport: c.flight?.arrivesAirport ?? trip.returnAirport,
-                  arrivesDate: c.flight?.arrivesAtLocal?.slice(0, 10) ?? "",
-                  arrivesTime: c.flight?.arrivesAtLocal?.slice(11, 16) ?? "",
-                  baggageAllowance: c.flight?.baggageAllowance ?? "",
-                }
-              : null,
-            checkinDone: c.flight?.checkinDone ?? false,
-            checkinOpensAt: c.flight?.checkinOpensAt
-              ? formatAbsoluteHe(c.flight.checkinOpensAt, { withTime: true })
-              : null,
-            checkinClosesAt: c.flight?.checkinClosesAt
-              ? formatAbsoluteHe(c.flight.checkinClosesAt, { withTime: true })
-              : null,
-          }))}
-        />
-      </details>
-
-      <details className="collapse section" id="travelers">
-        <summary>
-          נוסעים
-          <span className="hint">{trip.travelers.length} רשומים · דרכונים ותוקף</span>
-        </summary>
-      <TravelersPanel
+  return (
+    <>
+      <TripSheets
+        hero={hero}
+        body={body}
+        tiles={tiles}
         tripId={trip.id}
-        requiredUntil={utcToZoned(passportValidUntilRequirement(snapshot), DISPLAY_TZ).slice(0, 10)}
-        travelers={trip.travelers.map((t) => ({
-          id: t.id,
-          firstNameLatin: t.firstNameLatin,
-          lastNameLatin: t.lastNameLatin,
-          displayNameHe: t.displayNameHe,
-          passportLast4: t.passportLast4,
-          passportExpiry: t.passportExpiry ? utcToZoned(t.passportExpiry, DISPLAY_TZ).slice(0, 10) : null,
-          passportCountry: t.passportCountry,
-          dateOfBirth: t.dateOfBirth ? utcToZoned(t.dateOfBirth, DISPLAY_TZ).slice(0, 10) : null,
-          phone: t.phone,
-          isLead: t.isLead,
-          expiryOk: t.passportExpiry
-            ? t.passportExpiry.getTime() >= passportValidUntilRequirement(snapshot).getTime()
-            : null,
-        }))}
-      />
-      </details>
-
-      <details className="collapse section" id="money">
-        <summary>
-          תשלומים
-          <span className="hint">מחיר, גבייה ורווח</span>
-        </summary>
-      <MoneyPanel
-        tripId={trip.id}
-        priceToClient={trip.priceToClient}
-        supplierCost={trip.supplierCost}
-        actualSupplierCost={trip.actualSupplierCost}
-        amountPaid={trip.amountPaid}
-        hostFeeRate={trip.hostFeeRate}
-        hostName={hostAgencyName()}
-        settleMilestoneId={
-          trip.milestones.find((m) => m.key === "close_actual_commission" && isOpenState(m.state))?.id ?? null
+        clientId={trip.clientId}
+        clientPhone={trip.client.phone}
+        messageOptions={messageOptions}
+        flights={flightsSheet}
+        hotel={hotelSheet}
+        tasks={tasksSheet}
+        documents={<DocumentsPanel tripId={trip.id} rows={documents.rows} />}
+        travelers={
+          <TravelersPanel
+            tripId={trip.id}
+            requiredUntil={utcToZoned(passportValidUntilRequirement(snapshot), DISPLAY_TZ).slice(0, 10)}
+            travelers={trip.travelers.map((t) => ({
+              id: t.id,
+              firstNameLatin: t.firstNameLatin,
+              lastNameLatin: t.lastNameLatin,
+              displayNameHe: t.displayNameHe,
+              passportLast4: t.passportLast4,
+              passportExpiry: t.passportExpiry ? utcToZoned(t.passportExpiry, DISPLAY_TZ).slice(0, 10) : null,
+              passportCountry: t.passportCountry,
+              dateOfBirth: t.dateOfBirth ? utcToZoned(t.dateOfBirth, DISPLAY_TZ).slice(0, 10) : null,
+              phone: t.phone,
+              isLead: t.isLead,
+              expiryOk: t.passportExpiry
+                ? t.passportExpiry.getTime() >= passportValidUntilRequirement(snapshot).getTime()
+                : null,
+            }))}
+          />
         }
-      />
-      </details>
-
-      <details className="collapse section" id="link">
-        <summary>
-          קישור ללקוח
-          <span className="hint">העמוד שנשלח בוואטסאפ</span>
-        </summary>
-      {(() => {
-        const url = publicTripUrl(trip.publicToken);
-        const message = `היי, הנה עמוד הנסיעה שלכם ל${trip.destination}: ${url}`;
-        const wa = url ? whatsAppLink(trip.client.phone, message) : null;
-        return (
+        money={
+          <MoneyPanel
+            tripId={trip.id}
+            priceToClient={trip.priceToClient}
+            supplierCost={trip.supplierCost}
+            actualSupplierCost={trip.actualSupplierCost}
+            amountPaid={trip.amountPaid}
+            hostFeeRate={trip.hostFeeRate}
+            hostName={hostAgencyName()}
+            settleMilestoneId={
+              trip.milestones.find((m) => m.key === "close_actual_commission" && isOpenState(m.state))?.id ?? null
+            }
+          />
+        }
+        booking={
+          <ComponentsPanel
+            tripId={trip.id}
+            airports={airports}
+            airlines={airlines}
+            tripDates={{
+              departureDate: trip.departureLocal.slice(0, 10),
+              departureTime: trip.departureLocal.slice(11, 16),
+              returnDate: trip.returnLocal.slice(0, 10),
+              returnTime: trip.returnLocal.slice(11, 16),
+              departureAirport: trip.departureAirport,
+              returnAirport: trip.returnAirport,
+            }}
+            components={trip.components.map((c) => ({
+              id: c.id,
+              type: COMPONENT_TYPE_HE[c.type as ComponentType] ?? c.type,
+              rawType: c.type,
+              supplier: c.supplier,
+              description: c.description,
+              reference: c.reference,
+              status: c.status as ComponentStatus,
+              statusHe: COMPONENT_STATUS_HE[c.status as ComponentStatus] ?? c.status,
+              freeCancelUntil: c.freeCancelUntil ? formatAbsoluteHe(c.freeCancelUntil, { withTime: false }) : null,
+              supplierPaymentDue: c.supplierPaymentDue ? formatAbsoluteHe(c.supplierPaymentDue, { withTime: false }) : null,
+              freeCancelInput: c.freeCancelUntil ? utcToZoned(c.freeCancelUntil, DISPLAY_TZ).slice(0, 10) : null,
+              supplierPaymentInput: c.supplierPaymentDue ? utcToZoned(c.supplierPaymentDue, DISPLAY_TZ).slice(0, 10) : null,
+              isFlight: !!c.flight,
+              flightDefaults: c.type === "flight"
+                ? {
+                    componentId: c.id,
+                    direction: (c.flight?.direction as "outbound" | "inbound") ?? "outbound",
+                    airlineCode: c.flight?.airlineCode ?? "",
+                    flightNumber: c.flight?.flightNumber ?? "",
+                    departsAirport: c.flight?.departsAirport ?? trip.departureAirport,
+                    departsDate: c.flight?.departsAtLocal?.slice(0, 10) ?? trip.departureLocal.slice(0, 10),
+                    departsTime: c.flight?.departsAtLocal?.slice(11, 16) ?? trip.departureLocal.slice(11, 16),
+                    arrivesAirport: c.flight?.arrivesAirport ?? trip.returnAirport,
+                    arrivesDate: c.flight?.arrivesAtLocal?.slice(0, 10) ?? "",
+                    arrivesTime: c.flight?.arrivesAtLocal?.slice(11, 16) ?? "",
+                    baggageAllowance: c.flight?.baggageAllowance ?? "",
+                  }
+                : null,
+              checkinDone: c.flight?.checkinDone ?? false,
+              checkinOpensAt: c.flight?.checkinOpensAt
+                ? formatAbsoluteHe(c.flight.checkinOpensAt, { withTime: true })
+                : null,
+              checkinClosesAt: c.flight?.checkinClosesAt
+                ? formatAbsoluteHe(c.flight.checkinClosesAt, { withTime: true })
+                : null,
+            }))}
+          />
+        }
+        edit={
+          <>
+            <TripSettingsPanel
+              tripId={trip.id}
+              clientName={trip.client.name}
+              clientPhone={trip.client.phone}
+              clientEmail={trip.client.email}
+              destination={trip.destination}
+              source={trip.source}
+              notes={trip.notes}
+              status={trip.status}
+              travelerCount={trip.travelers.length}
+            />
+            <DepartureEditor
+              tripId={trip.id}
+              departureDate={trip.departureLocal.slice(0, 10)}
+              departureTime={trip.departureLocal.slice(11, 16)}
+              departureAirport={airportLabel(trip.departureAirport)}
+              returnDate={trip.returnLocal.slice(0, 10)}
+              returnTime={trip.returnLocal.slice(11, 16)}
+              returnAirport={airportLabel(trip.returnAirport)}
+            />
+          </>
+        }
+        link={
           <ClientLinkPanel
             tripId={trip.id}
             url={url}
@@ -331,38 +508,8 @@ export default async function TripPage({
             destination={trip.destination}
             waUrl={wa?.ok ? wa.url : null}
           />
-        );
-      })()}
-      </details>
-
-      <details className="collapse section" id="settings">
-        <summary>
-          הגדרות התיק
-          <span className="hint">פרטי לקוח, מקור הגעה, סטטוס ותאריכים</span>
-        </summary>
-      <TripSettingsPanel
-        tripId={trip.id}
-        clientName={trip.client.name}
-        clientPhone={trip.client.phone}
-        clientEmail={trip.client.email}
-        destination={trip.destination}
-        source={trip.source}
-        notes={trip.notes}
-        status={trip.status}
-        travelerCount={trip.travelers.length}
+        }
       />
-
-      {/* ------------------------------ שינוי העוגן ------------------------------ */}
-      <DepartureEditor
-        tripId={trip.id}
-        departureDate={trip.departureLocal.slice(0, 10)}
-        departureTime={trip.departureLocal.slice(11, 16)}
-        departureAirport={airportLabel(trip.departureAirport)}
-        returnDate={trip.returnLocal.slice(0, 10)}
-        returnTime={trip.returnLocal.slice(11, 16)}
-        returnAirport={airportLabel(trip.returnAirport)}
-      />
-      </details>
     </>
   );
 }

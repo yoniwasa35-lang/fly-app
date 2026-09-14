@@ -25,31 +25,67 @@ export type PreparedMessage = {
   waError: string | null;
 };
 
+/**
+ * הכנת הודעה לפי תיק ותבנית, בלי אבן דרך.
+ *
+ * זה מה שמפעיל את "שליחת הודעה ללקוח" מכרטיס הנסיעה: הסוכן בוחר נוסח
+ * מתוך רשימה — "תזכורת לטיסה", "מסמכי נסיעה" — ומקבל אותו מוכן. אותו
+ * עיבוד בדיוק כמו בהודעה שנולדת מאבן דרך, רק בלי אבן הדרך.
+ */
+export async function prepareTripMessage(
+  tripId: string,
+  templateKey: string,
+  opts: { overrideText?: string; now?: Date; direction?: "outbound" | "inbound" } = {},
+): Promise<PreparedMessage> {
+  return build({ tripId, templateKey, title: null, milestoneId: null, ...opts });
+}
+
 export async function prepareMessage(
   milestoneId: string,
   opts: { overrideText?: string; now?: Date } = {},
 ): Promise<PreparedMessage> {
+  // רק מה שצריך כדי לבחור תבנית וכיוון. את התיק עצמו טוען build.
   const milestone = await prisma.milestone.findUnique({
     where: { id: milestoneId },
-    include: {
-      trip: {
-        include: {
-          client: true,
-          travelers: { orderBy: { isLead: "desc" } },
-          components: { include: { flight: true }, orderBy: { sortOrder: "asc" } },
-        },
-      },
-    },
+    select: { tripId: true, title: true, anchor: true, messageTemplateKey: true },
   });
   if (!milestone) throw new Error("אבן הדרך לא נמצאה");
   if (!milestone.messageTemplateKey) {
     throw new Error(`לאבן הדרך "${milestone.title}" אין תבנית הודעה — היא פנימית.`);
   }
 
-  const trip = milestone.trip;
+  return build({
+    tripId: milestone.tripId,
+    templateKey: milestone.messageTemplateKey,
+    title: milestone.title,
+    milestoneId,
+    // אבן דרך שעוגנה בטיסת החזור מדברת על טיסת החזור. כל השאר על ההלוך.
+    direction: milestone.anchor === "flight_inbound" ? "inbound" : "outbound",
+    ...opts,
+  });
+}
 
-  // אבן דרך שעוגנה בטיסת החזור מדברת על טיסת החזור. כל השאר על ההלוך.
-  const direction = milestone.anchor === "flight_inbound" ? "inbound" : "outbound";
+/** הליבה המשותפת. שני המסלולים נבדלים רק במי בחר את התבנית. */
+async function build(args: {
+  tripId: string;
+  templateKey: string;
+  title: string | null;
+  milestoneId: string | null;
+  overrideText?: string;
+  now?: Date;
+  direction?: "outbound" | "inbound";
+}): Promise<PreparedMessage> {
+  const trip = await prisma.trip.findUnique({
+    where: { id: args.tripId },
+    include: {
+      client: true,
+      travelers: { orderBy: { isLead: "desc" } },
+      components: { include: { flight: true }, orderBy: { sortOrder: "asc" } },
+    },
+  });
+  if (!trip) throw new Error("הנסיעה לא נמצאה");
+
+  const direction = args.direction ?? "outbound";
   const flightComponent =
     trip.components.find((c) => c.flight?.direction === direction && c.status !== "cancelled") ??
     trip.components.find((c) => c.flight && c.status !== "cancelled");
@@ -79,12 +115,12 @@ export async function prepareMessage(
           checkinClosesAt: flightComponent.flight.checkinClosesAt,
         }
       : null,
-    now: opts.now ?? new Date(),
+    now: args.now ?? new Date(),
   };
 
-  const template = await getTemplate(milestone.messageTemplateKey);
-  const rendered = opts.overrideText
-    ? { text: opts.overrideText, missing: [], unknown: [] }
+  const template = await getTemplate(args.templateKey);
+  const rendered = args.overrideText
+    ? { text: args.overrideText, missing: [], unknown: [] }
     : renderTemplate(template.body, buildVariableValues(context));
 
   const lead = trip.travelers.find((t) => t.isLead && t.phone?.trim());
@@ -93,9 +129,9 @@ export async function prepareMessage(
   const link = whatsAppLink(phone, rendered.text);
 
   return {
-    milestoneId,
-    milestoneTitle: milestone.title,
-    templateKey: milestone.messageTemplateKey,
+    milestoneId: args.milestoneId ?? "",
+    milestoneTitle: args.title ?? "",
+    templateKey: args.templateKey,
     clientName: trip.client.name,
     phoneDisplay: link.ok ? link.phoneDisplay : null,
     phoneE164: normalized.ok ? normalized.e164 : null,
