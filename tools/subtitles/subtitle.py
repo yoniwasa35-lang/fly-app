@@ -16,6 +16,7 @@ MAX_CHARS = 34        # max characters per subtitle line
 MAX_GAP = 0.7         # pause (s) that forces a new line
 TYPE_MAX = 0.45       # max seconds to type a single word
 HOLD = 0.8            # seconds a line stays after its last word
+RLM = "\u200f"        # libass lays out LTR; RLM marks keep trailing punctuation on the left
 
 
 def probe_size(path):
@@ -115,7 +116,7 @@ def build(words, w, h, base):
     for i, ln in enumerate(lines):
         start = ln[0]["s"]
         nxt = lines[i + 1][0]["s"] if i + 1 < len(lines) else ln[-1]["e"] + HOLD
-        end = max(min(ln[-1]["e"] + HOLD, nxt), ln[-1]["e"] + 0.05)
+        end = min(max(min(ln[-1]["e"] + HOLD, nxt), ln[-1]["e"] + 0.05), nxt)  # never overlap next line
         full = " ".join(x["w"] for x in ln)
         x = int(min(w - 20, w / 2 + text_width(full, font) / 2))
         # reveal times: one per character of the full line
@@ -131,7 +132,7 @@ def build(words, w, h, base):
             if t1 - t0 < 0.01:
                 continue
             ass.append(f"Dialogue: 0,{ts_ass(t0)},{ts_ass(t1)},Type,,0,0,0,,"
-                       f"{{\\an3\\pos({x},{y})}}{full[:cut]}")
+                       f"{{\\an3\\pos({x},{y})}}{RLM}{full[:cut]}{RLM}")
         srt += [str(i + 1), f"{ts_srt(start)} --> {ts_srt(end)}", full, ""]
     with open(base + ".ass", "w", encoding="utf-8") as f:
         f.write("\n".join(ass) + "\n")
