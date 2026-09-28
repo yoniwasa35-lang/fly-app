@@ -96,7 +96,7 @@ def text_width(text, size):
 
 def build(words, w, h, base):
     lines = group_lines(words)
-    font = max(28, int(h * 0.058))
+    font = max(28, int(min(h * 0.058, w * 0.075)))  # portrait: size by width so lines fit
     outline = max(2, font // 13)
     ass = [
         "[Script Info]", "ScriptType: v4.00+", f"PlayResX: {w}", f"PlayResY: {h}",
@@ -111,7 +111,7 @@ def build(words, w, h, base):
         "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
     ]
     srt = []
-    y = int(h * 0.91)
+    y = int(h * (0.78 if h > w else 0.91))  # portrait: stay clear of app UI at the bottom
     for i, ln in enumerate(lines):
         start = ln[0]["s"]
         nxt = lines[i + 1][0]["s"] if i + 1 < len(lines) else ln[-1]["e"] + HOLD
